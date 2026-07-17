@@ -161,6 +161,50 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         emit DepositOpened(depositId, msg.sender, planId, amount, maturityAt, p.aprBps);
     }
 
+    function _requireOwner(uint256 depositId) internal view {
+        require(ownerOf(depositId) == msg.sender, "not owner");
+    }
+
+    function withdrawAtMaturity(uint256 depositId)
+        external
+        whenNotPaused
+        nonReentrant
+    {
+        _requireOwner(depositId);
+        Deposit storage d = deposits[depositId];
+        require(d.status == DepositStatus.Active, "not active");
+        require(block.timestamp >= d.maturityAt, "not matured");
+
+        uint256 interest = _computeInterest(d);
+        uint256 principal = d.principal;
+
+        // Effects before interactions (CEI): prevents reentrancy + double withdraw.
+        d.status = DepositStatus.Withdrawn;
+
+        usdc.safeTransfer(msg.sender, principal);
+        uint256 paid = vault.payInterest(msg.sender, interest);
+        if (paid < interest) {
+            d.pendingInterest = interest - paid; // C1: owe the rest, claimable later
+        }
+
+        emit Withdrawn(depositId, msg.sender, principal, paid, false);
+    }
+
+    /// @notice Claim interest that the vault could not pay at withdraw/renew time (C1).
+    function claimInterest(uint256 depositId)
+        external
+        whenNotPaused
+        nonReentrant
+    {
+        _requireOwner(depositId);
+        Deposit storage d = deposits[depositId];
+        uint256 owed = d.pendingInterest;
+        require(owed > 0, "nothing pending");
+        uint256 paid = vault.payInterest(msg.sender, owed);
+        d.pendingInterest = owed - paid;
+        emit InterestClaimed(depositId, msg.sender, paid);
+    }
+
     function _computeInterest(Deposit memory d) internal pure returns (uint256) {
         uint256 tenorSeconds = d.tenorDaysAtOpen * SECONDS_PER_DAY;
         return Math.mulDiv(d.principal, d.aprBpsAtOpen * tenorSeconds, SECONDS_PER_YEAR * BPS_DENOMINATOR);

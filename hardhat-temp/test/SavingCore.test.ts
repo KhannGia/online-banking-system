@@ -142,4 +142,77 @@ describe("SavingCore", function () {
       expect(await core.previewInterest(0n)).to.equal(expected);
     });
   });
+
+  describe("withdrawAtMaturity", function () {
+    beforeEach(async () => { await deployAll(); await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, PENALTY_BPS); await core.connect(alice).openDeposit(0n, 1000n * M); });
+
+    it("pays principal + interest at maturity", async () => {
+      const interest = await core.previewInterest(0n);
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      const before = await usdc.balanceOf(alice.address);
+      await expect(core.connect(alice).withdrawAtMaturity(0n))
+        .to.emit(core, "Withdrawn").withArgs(0n, alice.address, 1000n * M, interest, false);
+      expect(await usdc.balanceOf(alice.address)).to.equal(before + 1000n * M + interest);
+      expect((await core.deposits(0n)).status).to.equal(1); // Withdrawn
+    });
+
+    it("succeeds exactly at maturity second", async () => {
+      const d = await core.deposits(0n);
+      await time.increaseTo(d.maturityAt);
+      await expect(core.connect(alice).withdrawAtMaturity(0n)).to.not.be.reverted;
+    });
+
+    it("reverts if too early", async () => {
+      await expect(core.connect(alice).withdrawAtMaturity(0n)).to.be.revertedWith("not matured");
+    });
+
+    it("reverts on double withdraw", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await core.connect(alice).withdrawAtMaturity(0n);
+      await expect(core.connect(alice).withdrawAtMaturity(0n)).to.be.revertedWith("not active");
+    });
+
+    it("reverts if not owner", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await expect(core.connect(bob).withdrawAtMaturity(0n)).to.be.revertedWith("not owner");
+    });
+
+    it("the NFT owner (buyer) can withdraw after transfer", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await core.connect(alice).transferFrom(alice.address, bob.address, 0n);
+      await core.connect(bob).withdrawAtMaturity(0n);
+      expect((await core.deposits(0n)).status).to.equal(1);
+    });
+
+    describe("C1: principal always safe when vault is short", function () {
+      it("pays principal fully, records pendingInterest, and lets owner claim later", async () => {
+        // drain the vault below the interest owed
+        const interest = await core.previewInterest(0n);
+        // schedule+execute a withdraw that empties the vault
+        await vault.connect(owner).scheduleWithdrawVault(await vault.vaultBalance());
+        await time.increase(2 * DAY);
+        await vault.connect(owner).executeWithdrawVault();
+        expect(await vault.vaultBalance()).to.equal(0n);
+
+        await time.increase(Number(TENOR_DAYS) * DAY);
+        const before = await usdc.balanceOf(alice.address);
+        await core.connect(alice).withdrawAtMaturity(0n);
+        // principal returned in full, interest = 0 paid
+        expect(await usdc.balanceOf(alice.address)).to.equal(before + 1000n * M);
+        expect((await core.deposits(0n)).pendingInterest).to.equal(interest);
+
+        // refund vault, claim
+        await vault.connect(owner).fundVault(interest);
+        await expect(core.connect(alice).claimInterest(0n))
+          .to.emit(core, "InterestClaimed").withArgs(0n, alice.address, interest);
+        expect((await core.deposits(0n)).pendingInterest).to.equal(0n);
+      });
+
+      it("claimInterest reverts when nothing pending", async () => {
+        await time.increase(Number(TENOR_DAYS) * DAY);
+        await core.connect(alice).withdrawAtMaturity(0n);
+        await expect(core.connect(alice).claimInterest(0n)).to.be.revertedWith("nothing pending");
+      });
+    });
+  });
 });
