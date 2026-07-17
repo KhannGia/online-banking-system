@@ -215,4 +215,35 @@ describe("SavingCore", function () {
       });
     });
   });
+
+  describe("earlyWithdraw", function () {
+    beforeEach(async () => { await deployAll(); await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, PENALTY_BPS); await core.connect(alice).openDeposit(0n, 1000n * M); });
+
+    it("applies penalty, pays no interest, credits feeReceiver", async () => {
+      const penalty = (1000n * M * PENALTY_BPS) / 10_000n; // 550 bps of 1000 = 55 USDC
+      const before = await usdc.balanceOf(alice.address);
+      const feeBefore = await usdc.balanceOf(fee.address);
+      await expect(core.connect(alice).earlyWithdraw(0n))
+        .to.emit(core, "Withdrawn").withArgs(0n, alice.address, 1000n * M, 0n, true);
+      expect(await usdc.balanceOf(alice.address)).to.equal(before + 1000n * M - penalty);
+      expect(await usdc.balanceOf(fee.address)).to.equal(feeBefore + penalty);
+      expect((await core.deposits(0n)).status).to.equal(1); // Withdrawn
+    });
+
+    it("reverts if already matured", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await expect(core.connect(alice).earlyWithdraw(0n)).to.be.revertedWith("already matured");
+    });
+
+    it("reverts if not owner and if not active", async () => {
+      await expect(core.connect(bob).earlyWithdraw(0n)).to.be.revertedWith("not owner");
+      await core.connect(alice).earlyWithdraw(0n);
+      await expect(core.connect(alice).earlyWithdraw(0n)).to.be.revertedWith("not active");
+    });
+
+    it("reverts when paused", async () => {
+      await core.connect(owner).pause();
+      await expect(core.connect(alice).earlyWithdraw(0n)).to.be.reverted;
+    });
+  });
 });

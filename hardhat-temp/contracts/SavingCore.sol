@@ -190,6 +190,31 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         emit Withdrawn(depositId, msg.sender, principal, paid, false);
     }
 
+    function earlyWithdraw(uint256 depositId)
+        external
+        whenNotPaused
+        nonReentrant
+    {
+        _requireOwner(depositId);
+        Deposit storage d = deposits[depositId];
+        require(d.status == DepositStatus.Active, "not active");
+        require(block.timestamp < d.maturityAt, "already matured");
+
+        uint256 principal = d.principal;
+        uint256 penalty = Math.mulDiv(principal, d.penaltyBpsAtOpen, BPS_DENOMINATOR);
+
+        // Effects
+        d.status = DepositStatus.Withdrawn;
+
+        // Interactions: principal minus penalty to user, penalty to feeReceiver. No interest.
+        usdc.safeTransfer(msg.sender, principal - penalty);
+        if (penalty > 0) {
+            usdc.safeTransfer(vault.feeReceiver(), penalty);
+        }
+
+        emit Withdrawn(depositId, msg.sender, principal, 0, true);
+    }
+
     /// @notice Claim interest that the vault could not pay at withdraw/renew time (C1).
     function claimInterest(uint256 depositId)
         external
