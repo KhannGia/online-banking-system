@@ -102,6 +102,7 @@ contract VaultManager is IVaultManager, Ownable, Pausable {
         emit VaultWithdrawExecuted(amount);
     }
 
+    /// @notice Cancel a previously scheduled vault withdrawal.
     function cancelScheduledWithdrawal() external onlyOwner {
         require(withdrawExecutableAt != 0, "nothing scheduled");
         pendingWithdrawAmount = 0;

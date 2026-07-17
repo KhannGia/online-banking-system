@@ -84,8 +84,10 @@ describe("VaultManager", function () {
   it("pause/unpause is owner-only", async () => {
     await expect(vault.connect(user).pause()).to.be.reverted;
     await vault.connect(owner).pause();
+    expect(await vault.paused()).to.equal(true);
     await expect(vault.connect(user).unpause()).to.be.reverted;
     await vault.connect(owner).unpause();
+    expect(await vault.paused()).to.equal(false);
   });
 
   describe("timelock withdraw", function () {

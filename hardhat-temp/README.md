@@ -158,11 +158,16 @@ with **problem → solution → trade-off**.
   bank could freeze a user's *own principal* forever simply by never funding the
   vault.
 - **Solution:** `VaultManager.payInterest` pays what it can and returns the paid
-  amount; it never reverts. `SavingCore` always returns principal in full
-  immediately, records any interest shortfall in `deposit.pendingInterest`, and
-  does **not** burn the certificate NFT. The holder calls `claimInterest(depositId)`
-  to collect the remainder once the vault is refunded. Applied uniformly to
-  `withdrawAtMaturity`, `renewDeposit`, and `autoRenewDeposit`.
+  amount; it never reverts. `SavingCore` returns principal in full immediately
+  whenever the system is operational — an empty or underfunded vault can never
+  freeze it, because principal is transferred from `SavingCore`'s own balance
+  *before* the vault is ever called. Any interest shortfall is recorded in
+  `deposit.pendingInterest`, and the certificate NFT is **not** burned. The holder
+  calls `claimInterest(depositId)` to collect the remainder once the vault is
+  refunded. Applied uniformly to `withdrawAtMaturity`, `renewDeposit`, and
+  `autoRenewDeposit`. The one thing that *can* withhold principal is a deliberate
+  emergency pause (required by Business Rule #6, §8) — that's an intentional admin
+  stop, not a vault-funding failure, and C1 is about the latter.
 - **Trade-off:** The bank still owes the interest — it becomes an on-chain
   liability (`pendingInterest`) instead of the user's funds being locked. Slightly
   more state per deposit.
@@ -217,7 +222,8 @@ Additional events for our features: `InterestClaimed`, `KeeperRewardPaid`,
 ### Q1 — Transferable certificate: who can withdraw, Alice or Bob?
 
 **Bob (the current NFT holder) can withdraw.** Every action checks the certificate
-owner, not the original depositor. The deciding line is in `SavingCore._requireOwner`:
+owner, not the original depositor. The deciding line is in `SavingCore._requireOwner`
+(`contracts/SavingCore.sol:164-166`):
 
 ```solidity
 require(ownerOf(depositId) == msg.sender, "not owner");
@@ -238,6 +244,13 @@ full principal immediately, record the interest shortfall as `pendingInterest`, 
 let the holder call `claimInterest` later. We chose this because a user's principal
 should never be hostage to the bank's liability. The interest is still owed and
 tracked on-chain; only the *payout timing* is deferred, and only for the interest.
+Precisely: principal is returned in full immediately whenever the system is
+operational — an empty or underfunded vault (`VaultManager.payInterest`,
+`contracts/VaultManager.sol:64-77`) can never freeze it, because `withdrawAtMaturity`
+transfers principal from `SavingCore`'s own balance (`contracts/SavingCore.sol:184`)
+*before* it even calls the vault. The only thing that withholds principal is a
+deliberate emergency pause, which §8's Business Rules Checklist (rule 6, "paused ⇒
+no withdrawals/renewals") requires.
 
 ### Q3 — Dead bot for a month: does the user lose anything?
 
@@ -250,23 +263,27 @@ the renewal. The user keeps their original APR for the renewed term.
 
 ### Q4 — Rounding dust: who keeps it, and can it cause a revert?
 
-Integer division in `mulDiv` always truncates **down**, so the computed interest is
-never more than the exact value. The un-paid sub-unit remainder stays in the
-**vault** (the bank keeps the dust). It can **never** cause a revert or a wrong
-balance, because the contract only ever pays the floored amount — it never tries to
-pay more than it computed, and `payInterest` is itself capped at the vault balance.
-Our test "rounding dust" opens a deposit so small that interest floors to `0`, then
-asserts the withdrawal succeeds, principal is returned in full, and the vault
-balance is unchanged.
+Integer division in `mulDiv` (`contracts/SavingCore.sol:334-337`) always truncates
+**down**, so `mulDiv` floors and the bank's liability *is* the floored amount — the
+remainder is never created as an obligation, it simply never leaves the vault (the
+bank keeps the dust). Concretely, our own worked example in §4 has real dust: 1,000
+USDC @ 225 bps / 180 days computes to **11,095,890.41** units and floors to
+**11,095,890** — 0.41 units are withheld and stay in the vault every time that exact
+deposit matures. Because the contract only ever computes and pays the floored amount,
+it can **never** try to pay more than it computed, so rounding can never cause a
+revert or a wrong balance — `payInterest` is additionally capped at the vault balance
+as a second line of defense. Our test "rounding dust" covers the other extreme: a
+deposit so small that interest floors all the way to `0`, and asserts the withdrawal
+still succeeds, principal is returned in full, and the vault balance is unchanged.
 
 ### Q5 — Boundary times: `>=` or `>`?
 
-| Action | Condition | Operator | Reason |
-|---|---|---|---|
-| `withdrawAtMaturity` | `block.timestamp >= maturityAt` | `>=` | The **exact** maturity second counts as "at maturity", not early. |
-| `earlyWithdraw` | `block.timestamp < maturityAt` | `<` | Strictly before maturity is early; the two conditions are exact complements, so every instant maps to exactly one path. |
-| `renewDeposit` (manual) | `block.timestamp >= maturityAt` | `>=` | Renew is allowed from maturity onward, with no upper bound. |
-| `autoRenewDeposit` | `block.timestamp >= maturityAt + GRACE_PERIOD` | `>=` | The user can still be auto-renewed **at** the exact end of the grace period. |
+| Action | Condition | Operator | Line | Reason |
+|---|---|---|---|---|
+| `withdrawAtMaturity` | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:176` | The **exact** maturity second counts as "at maturity", not early. |
+| `earlyWithdraw` | `block.timestamp < maturityAt` | `<` | `SavingCore.sol:201` | Strictly before maturity is early; the two conditions are exact complements, so every instant maps to exactly one path. |
+| `renewDeposit` (manual) | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:242` | Renew is allowed from maturity onward, with no upper bound. |
+| `autoRenewDeposit` | `block.timestamp >= maturityAt + GRACE_PERIOD` | `>=` | `SavingCore.sol:276` | The user can still be auto-renewed **at** the exact end of the grace period. |
 
 At the exact end of the grace period the user can *still* manually renew too, because
 manual renew has no upper time bound — it stays available until a keeper actually
@@ -283,7 +300,7 @@ of existing deposits from a disabled plan can still:
   snapshotted terms** and does not read the current plan, so it doesn't check
   `enabled`.
 - `renewDeposit` (manual) — allowed **only into an enabled plan**. Renewing *into*
-  a disabled plan reverts:
+  a disabled plan reverts, at `contracts/SavingCore.sol:245`:
 
 ```solidity
 require(np.enabled, "plan disabled");
@@ -307,7 +324,7 @@ reentrancy vector.)
 1. `nonReentrant` on every value-moving function — a reentrant call reverts with
    `ReentrancyGuardReentrantCall`.
 2. Checks-Effects-Interactions: the deposit status is flipped **before** any external
-   call, e.g. in `withdrawAtMaturity`:
+   call, e.g. in `withdrawAtMaturity` (`contracts/SavingCore.sol:182` and `:184`):
 
 ```solidity
 d.status = DepositStatus.Withdrawn;   // effect first
@@ -340,7 +357,8 @@ and asserts the reentrant `openDeposit` reverts.
 
 ## 9. How to Run
 
-Prerequisites: Node.js 18+ and npm. From the repository root:
+Prerequisites: Node.js 18+ and npm. From the `hardhat-temp/` directory (this
+package's `package.json` lives here — the monorepo root has none):
 
 ```shell
 # install dependencies
@@ -399,9 +417,21 @@ Hardhat package, under `../docs/specs/` and `../docs/plans/`.
 ## 11. Implementation Status
 
 The design spec and the task-by-task implementation plan are complete and approved
-(`../docs/specs/` and `../docs/plans/`). The contracts and tests are **not yet
-written** — they will be implemented task-by-task from
-`../docs/plans/2026-07-17-savingcore-contracts.md`. The "Design Answers" above quote
-the function names and exact lines (`require` statements, comparison operators) as
-they are specified in that plan and will appear in the contracts; concrete line
-numbers will be added once the code is in place.
+(`../docs/specs/` and `../docs/plans/`). The contracts and tests are **implemented
+and passing**: 78/78 tests green across `test/MockUSDC.test.ts`,
+`test/VaultManager.test.ts`, and `test/SavingCore.test.ts`.
+
+Statement / branch / function / line coverage per contract:
+
+| Contract | Statements | Branches | Functions | Lines |
+|---|---|---|---|---|
+| `MockUSDC.sol` | 100% | 100% | 100% | 100% |
+| `VaultManager.sol` | 100% | 100% | 100% | 100% |
+| `SavingCore.sol` | 100% | 95.45% | 100% | 100% |
+
+The system deploys locally via `npx hardhat deploy --network hardhat` (wires all
+three contracts and creates the default 180-day / 225-bps / 550-bps plan; see §9).
+The "Design Answers" in §7 quote the function names and exact `file:line` references
+into the actual contract source (`require` statements, comparison operators, CEI
+ordering) — read the cited lines directly in `contracts/SavingCore.sol` and
+`contracts/VaultManager.sol` to verify them.

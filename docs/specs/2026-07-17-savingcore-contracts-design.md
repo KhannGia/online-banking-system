@@ -174,7 +174,7 @@ Verification against the spec example (1,000 USDC = 1e9 units, 90 days, 250 bps)
 5. Uses the ORIGINAL snapshot values (same tenor, `aprBpsAtOpen`, `penaltyBpsAtOpen`) — does NOT read the current plan, so it does not check `plan.enabled` (it continues old terms, it doesn't open under a plan).
 6. `interest = computeInterest(oldDeposit)`.
 7. `keeperReward = mulDiv(interest, keeperRewardBps, 10000)`.
-8. Pull `interest` for compounding + `keeperReward` for the caller from the vault. Both come from the vault (never from principal). If the vault is short, apply C1 semantics: pay what's available, record shortfall as pending; keeper reward is only paid if fully covered after interest (interest to the user takes priority over keeper reward).
+8. Pull `interest` for compounding + `keeperReward` for the caller from the vault, as two sequential `payInterest` calls. Both come from the vault (never from principal). If the vault is short, apply C1 semantics: pay what's available, record shortfall as pending. Because the interest call is made first and drains the vault before the reward call is attempted, the user's interest always has priority; the keeper reward call then receives whatever the vault has left — in full, partially, or not at all if the vault is now empty. A partial reward still incentivizes keepers rather than paying nothing, and never comes at the user's expense.
 9. `newPrincipal = oldPrincipal + interestPaidToPrincipal`.
 10. Old deposit `status = AutoRenewed`; mint new NFT to the SAME owner (`ownerOf(oldDepositId)`), same tenor, original APR/penalty.
 11. Emit `Renewed(...)`.

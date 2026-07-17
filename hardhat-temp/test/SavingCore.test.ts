@@ -537,6 +537,23 @@ describe("SavingCore", function () {
         await expect(tx).to.not.emit(core, "KeeperRewardPaid");
       });
     });
+
+    it("pays the user's interest in full and the keeper a partial reward when the vault is short", async () => {
+      await core.connect(owner).setKeeperRewardBps(500n);
+      const interest = await core.previewInterest(0n);
+      const reward = (interest * 500n) / 10_000n;
+      // drain the vault, then refund exactly interest + half the reward
+      await vault.connect(owner).scheduleWithdrawVault(await vault.vaultBalance());
+      await time.increase(2 * DAY);
+      await vault.connect(owner).executeWithdrawVault();
+      await vault.connect(owner).fundVault(interest + reward / 2n);
+      await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+      const kBefore = await usdc.balanceOf(keeper.address);
+      await core.connect(keeper).autoRenewDeposit(0n);
+      expect((await core.deposits(1n)).principal).to.equal(1000n * M + interest); // user made WHOLE
+      expect((await core.deposits(0n)).pendingInterest).to.equal(0n);
+      expect(await usdc.balanceOf(keeper.address)).to.equal(kBefore + reward / 2n); // keeper partial
+    });
   });
 
   describe("security", function () {
