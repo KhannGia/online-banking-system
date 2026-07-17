@@ -246,4 +246,52 @@ describe("SavingCore", function () {
       await expect(core.connect(alice).earlyWithdraw(0n)).to.be.reverted;
     });
   });
+
+  describe("renewDeposit (manual)", function () {
+    beforeEach(async () => {
+      await deployAll();
+      await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, PENALTY_BPS); // plan 0
+      await core.connect(owner).createPlan(90n, 300n, 0, 0, 400n);                  // plan 1 (different)
+      await core.connect(alice).openDeposit(0n, 1000n * M);
+    });
+
+    it("compounds interest into new principal with the new plan's rate", async () => {
+      const interest = await core.previewInterest(0n);
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      const tx = await core.connect(alice).renewDeposit(0n, 1n);
+      const newPrincipal = 1000n * M + interest;
+      await expect(tx).to.emit(core, "Renewed").withArgs(0n, 1n, newPrincipal, 1n);
+      // old status ManualRenewed
+      expect((await core.deposits(0n)).status).to.equal(2);
+      // new deposit uses plan 1 snapshot
+      const nd = await core.deposits(1n);
+      expect(nd.principal).to.equal(newPrincipal);
+      expect(nd.aprBpsAtOpen).to.equal(300n);
+      expect(nd.tenorDaysAtOpen).to.equal(90n);
+      expect(await core.ownerOf(1n)).to.equal(alice.address);
+    });
+
+    it("reverts before maturity", async () => {
+      await expect(core.connect(alice).renewDeposit(0n, 1n)).to.be.revertedWith("not matured");
+    });
+
+    it("reverts renewing INTO a disabled plan", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await core.connect(owner).disablePlan(1n);
+      await expect(core.connect(alice).renewDeposit(0n, 1n)).to.be.revertedWith("plan disabled");
+    });
+
+    it("reverts if not owner / not active", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await expect(core.connect(bob).renewDeposit(0n, 1n)).to.be.revertedWith("not owner");
+      await core.connect(alice).renewDeposit(0n, 1n);
+      await expect(core.connect(alice).renewDeposit(0n, 1n)).to.be.revertedWith("not active");
+    });
+
+    it("reverts when paused", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await core.connect(owner).pause();
+      await expect(core.connect(alice).renewDeposit(0n, 1n)).to.be.reverted;
+    });
+  });
 });

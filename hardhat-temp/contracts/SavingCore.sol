@@ -230,6 +230,62 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         emit InterestClaimed(depositId, msg.sender, paid);
     }
 
+    function renewDeposit(uint256 depositId, uint256 newPlanId)
+        external
+        whenNotPaused
+        nonReentrant
+        returns (uint256 newDepositId)
+    {
+        _requireOwner(depositId);
+        Deposit storage d = deposits[depositId];
+        require(d.status == DepositStatus.Active, "not active");
+        require(block.timestamp >= d.maturityAt, "not matured");
+        require(newPlanId < _plans.length, "no plan");
+        Plan memory np = _plans[newPlanId];
+        require(np.enabled, "plan disabled");
+
+        uint256 interest = _computeInterest(d);
+        address who = msg.sender;
+
+        // Effects
+        d.status = DepositStatus.ManualRenewed;
+
+        // Pull interest from vault into this contract to compound. C1: only the paid part compounds.
+        uint256 paid = vault.payInterest(address(this), interest);
+        if (paid < interest) {
+            d.pendingInterest = interest - paid; // owner can claim the rest against the OLD NFT
+        }
+        uint256 newPrincipal = d.principal + paid;
+
+        newDepositId = _mintRenewal(who, newPlanId, newPrincipal, np.aprBps, np.earlyWithdrawPenaltyBps, np.tenorDays);
+        emit Renewed(depositId, newDepositId, newPrincipal, newPlanId);
+    }
+
+    function _mintRenewal(
+        address to,
+        uint256 planId,
+        uint256 newPrincipal,
+        uint256 aprBps,
+        uint256 penaltyBps,
+        uint256 tenorDays
+    ) internal returns (uint256 newDepositId) {
+        newDepositId = nextDepositId++;
+        uint256 maturityAt = block.timestamp + tenorDays * SECONDS_PER_DAY;
+        deposits[newDepositId] = Deposit({
+            planId: planId,
+            principal: newPrincipal,
+            startAt: block.timestamp,
+            maturityAt: maturityAt,
+            aprBpsAtOpen: aprBps,
+            penaltyBpsAtOpen: penaltyBps,
+            tenorDaysAtOpen: tenorDays,
+            status: DepositStatus.Active,
+            pendingInterest: 0
+        });
+        _safeMint(to, newDepositId);
+        emit DepositOpened(newDepositId, to, planId, newPrincipal, maturityAt, aprBps);
+    }
+
     function _computeInterest(Deposit memory d) internal pure returns (uint256) {
         uint256 tenorSeconds = d.tenorDaysAtOpen * SECONDS_PER_DAY;
         return Math.mulDiv(d.principal, d.aprBpsAtOpen * tenorSeconds, SECONDS_PER_YEAR * BPS_DENOMINATOR);
