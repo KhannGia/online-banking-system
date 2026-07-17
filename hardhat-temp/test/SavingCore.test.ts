@@ -415,4 +415,48 @@ describe("SavingCore", function () {
       });
     });
   });
+
+  describe("security", function () {
+    beforeEach(async () => { await deployAll(); await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, PENALTY_BPS); });
+
+    it("blocks reentrancy on the _safeMint path (openDeposit)", async () => {
+      const mal = await (await ethers.getContractFactory("MaliciousReceiver"))
+        .deploy(await core.getAddress(), await usdc.getAddress());
+      await usdc.mint(await mal.getAddress(), 5000n * M);
+      await mal.approveCore(5000n * M);
+      // arm the attack: when the mint callback fires, it re-enters openDeposit
+      await mal.setAttack(true, 0n, 1000n * M);
+      await expect(mal.open(0n, 1000n * M))
+        .to.be.revertedWithCustomError(core, "ReentrancyGuardReentrantCall");
+    });
+
+    it("status-before-transfer prevents double withdraw (CEI, independent of guard)", async () => {
+      await core.connect(alice).openDeposit(0n, 1000n * M);
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await core.connect(alice).withdrawAtMaturity(0n);
+      await expect(core.connect(alice).withdrawAtMaturity(0n)).to.be.revertedWith("not active");
+    });
+  });
+
+  describe("rounding dust (Open Question #4)", function () {
+    beforeEach(async () => { await deployAll(); await core.connect(owner).createPlan(1n, 1n, 0, 0, PENALTY_BPS); }); // 1 day, 1 bps
+
+    it("interest truncates down; vault keeps the dust; no revert", async () => {
+      // tiny principal so interest rounds toward zero
+      await usdc.mint(alice.address, 10n);
+      await usdc.connect(alice).approve(await core.getAddress(), 10n);
+      await core.connect(alice).openDeposit(0n, 10n); // 10 base units
+      const preview = await core.previewInterest(0n);
+      const tenorSeconds = 1n * BigInt(DAY);
+      const expected = (10n * (1n * tenorSeconds)) / (31_536_000n * 10_000n); // = 0 (truncated)
+      expect(preview).to.equal(expected); // 0
+      const vaultBefore = await vault.vaultBalance();
+      await time.increase(1 * DAY);
+      const aliceBefore = await usdc.balanceOf(alice.address);
+      await core.connect(alice).withdrawAtMaturity(0n); // must not revert
+      // principal returned, zero interest, vault unchanged (kept the sub-unit dust)
+      expect(await usdc.balanceOf(alice.address)).to.equal(aliceBefore + 10n);
+      expect(await vault.vaultBalance()).to.equal(vaultBefore);
+    });
+  });
 });
