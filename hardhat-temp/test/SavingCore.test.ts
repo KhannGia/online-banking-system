@@ -93,4 +93,53 @@ describe("SavingCore", function () {
       expect(await core.keeperRewardBps()).to.equal(50n);
     });
   });
+
+  describe("openDeposit", function () {
+    beforeEach(async () => { await deployAll(); await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 100n * M, 5000n * M, PENALTY_BPS); });
+
+    it("opens a deposit, holds principal, mints NFT, snapshots APR", async () => {
+      const amount = 1000n * M;
+      const tx = await core.connect(alice).openDeposit(0n, amount);
+      const rc = await tx.wait();
+      const block = await ethers.provider.getBlock(rc!.blockNumber);
+      const expectedMaturity = BigInt(block!.timestamp) + TENOR_DAYS * BigInt(DAY);
+      await expect(tx).to.emit(core, "DepositOpened").withArgs(0n, alice.address, 0n, amount, expectedMaturity, APR_BPS);
+      expect(await core.ownerOf(0n)).to.equal(alice.address);
+      expect(await usdc.balanceOf(await core.getAddress())).to.equal(amount);
+      const d = await core.deposits(0n);
+      expect(d.principal).to.equal(amount);
+      expect(d.aprBpsAtOpen).to.equal(APR_BPS);
+      expect(d.penaltyBpsAtOpen).to.equal(PENALTY_BPS);
+      expect(d.status).to.equal(0); // Active
+    });
+
+    it("snapshot is immutable across plan updates", async () => {
+      await core.connect(alice).openDeposit(0n, 1000n * M);
+      await core.connect(owner).updatePlan(0n, 999n);
+      expect((await core.deposits(0n)).aprBpsAtOpen).to.equal(APR_BPS); // unchanged
+    });
+
+    it("rejects below min and above max", async () => {
+      await expect(core.connect(alice).openDeposit(0n, 50n * M)).to.be.revertedWith("below min");
+      await expect(core.connect(alice).openDeposit(0n, 6000n * M)).to.be.revertedWith("above max");
+    });
+
+    it("rejects disabled plan", async () => {
+      await core.connect(owner).disablePlan(0n);
+      await expect(core.connect(alice).openDeposit(0n, 1000n * M)).to.be.revertedWith("plan disabled");
+    });
+
+    it("rejects when paused", async () => {
+      await core.connect(owner).pause();
+      await expect(core.connect(alice).openDeposit(0n, 1000n * M)).to.be.reverted;
+    });
+
+    it("previewInterest matches the spec formula", async () => {
+      await core.connect(alice).openDeposit(0n, 1000n * M);
+      // interest = mulDiv(1e9, 225 * (180*86400), 31536000 * 10000)
+      const tenorSeconds = 180n * BigInt(DAY);
+      const expected = (1000n * M * (APR_BPS * tenorSeconds)) / (31_536_000n * 10_000n);
+      expect(await core.previewInterest(0n)).to.equal(expected);
+    });
+  });
 });

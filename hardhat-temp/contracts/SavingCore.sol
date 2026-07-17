@@ -127,6 +127,49 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         return _plans.length;
     }
 
+    // ----- Deposit lifecycle -----
+
+    function openDeposit(uint256 planId, uint256 amount)
+        external
+        whenNotPaused
+        nonReentrant
+        returns (uint256 depositId)
+    {
+        require(planId < _plans.length, "no plan");
+        Plan memory p = _plans[planId];
+        require(p.enabled, "plan disabled");
+        if (p.minDeposit > 0) require(amount >= p.minDeposit, "below min");
+        if (p.maxDeposit > 0) require(amount <= p.maxDeposit, "above max");
+
+        usdc.safeTransferFrom(msg.sender, address(this), amount);
+
+        depositId = nextDepositId++;
+        uint256 maturityAt = block.timestamp + p.tenorDays * SECONDS_PER_DAY;
+        deposits[depositId] = Deposit({
+            planId: planId,
+            principal: amount,
+            startAt: block.timestamp,
+            maturityAt: maturityAt,
+            aprBpsAtOpen: p.aprBps,
+            penaltyBpsAtOpen: p.earlyWithdrawPenaltyBps,
+            tenorDaysAtOpen: p.tenorDays,
+            status: DepositStatus.Active,
+            pendingInterest: 0
+        });
+
+        _safeMint(msg.sender, depositId);
+        emit DepositOpened(depositId, msg.sender, planId, amount, maturityAt, p.aprBps);
+    }
+
+    function _computeInterest(Deposit memory d) internal pure returns (uint256) {
+        uint256 tenorSeconds = d.tenorDaysAtOpen * SECONDS_PER_DAY;
+        return Math.mulDiv(d.principal, d.aprBpsAtOpen * tenorSeconds, SECONDS_PER_YEAR * BPS_DENOMINATOR);
+    }
+
+    function previewInterest(uint256 depositId) external view returns (uint256) {
+        return _computeInterest(deposits[depositId]);
+    }
+
     function pause() external onlyOwner {
         _pause();
     }
