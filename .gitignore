@@ -1,0 +1,27 @@
+# ---- Secrets / environment (never commit) ----
+.env
+**/.env
+*.env.local
+**/*.env.local
+
+# ---- Dependencies ----
+node_modules/
+**/node_modules/
+
+# ---- Hardhat build output (generated) ----
+hardhat-temp/cache/
+hardhat-temp/artifacts/
+hardhat-temp/typechain/
+hardhat-temp/typechain-types/
+hardhat-temp/coverage/
+hardhat-temp/coverage.json
+hardhat-temp/data/
+hardhat-temp/deployments/localhost/
+hardhat-temp/deployments/hardhat/
+
+# ---- Windows Zone.Identifier metadata ----
+*Zone.Identifier
+
+# ---- Editor / OS junk ----
+.DS_Store
+*.log
