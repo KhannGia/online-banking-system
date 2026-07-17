@@ -10,6 +10,7 @@ import "hardhat-deploy-ethers";
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@typechain/hardhat";
+import "solidity-coverage";
 
 dotenv.config();
 

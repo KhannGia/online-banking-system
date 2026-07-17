@@ -72,11 +72,21 @@ describe("SavingCore", function () {
       await expect(core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 100, 50, PENALTY_BPS)).to.be.revertedWith("bad limits");
     });
 
+    it("rejects penalty above 100% (bps > 10000)", async () => {
+      await expect(core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, 10001n)).to.be.revertedWith("bad penalty");
+    });
+
     it("updates plan APR (new deposits only) and emits", async () => {
       await createDefaultPlan();
       await expect(core.connect(owner).updatePlan(0n, 300n)).to.emit(core, "PlanUpdated").withArgs(0n, 300n);
       expect((await core.plans(0n)).aprBps).to.equal(300n);
       await expect(core.connect(owner).updatePlan(0n, 0)).to.be.revertedWith("bad apr");
+    });
+
+    it("rejects updatePlan on an out-of-range planId and from a non-owner", async () => {
+      await createDefaultPlan();
+      await expect(core.connect(owner).updatePlan(1n, 300n)).to.be.revertedWith("no plan");
+      await expect(core.connect(alice).updatePlan(0n, 300n)).to.be.reverted;
     });
 
     it("enables and disables plans", async () => {
@@ -87,10 +97,50 @@ describe("SavingCore", function () {
       expect((await core.plans(0n)).enabled).to.equal(true);
     });
 
+    it("rejects enablePlan/disablePlan on an out-of-range planId and from a non-owner", async () => {
+      await createDefaultPlan();
+      await expect(core.connect(owner).enablePlan(1n)).to.be.revertedWith("no plan");
+      await expect(core.connect(owner).disablePlan(1n)).to.be.revertedWith("no plan");
+      await expect(core.connect(alice).enablePlan(0n)).to.be.reverted;
+      await expect(core.connect(alice).disablePlan(0n)).to.be.reverted;
+    });
+
+    it("rejects plans() lookup on an out-of-range planId", async () => {
+      await createDefaultPlan();
+      await expect(core.plans(1n)).to.be.revertedWith("no plan");
+    });
+
     it("sets keeper reward bps (owner only)", async () => {
       await expect(core.connect(alice).setKeeperRewardBps(50)).to.be.reverted;
       await expect(core.connect(owner).setKeeperRewardBps(50)).to.emit(core, "KeeperRewardUpdated").withArgs(50n);
       expect(await core.keeperRewardBps()).to.equal(50n);
+    });
+
+    it("rejects keeper reward bps above 10000", async () => {
+      await expect(core.connect(owner).setKeeperRewardBps(10001n)).to.be.revertedWith("bad bps");
+    });
+  });
+
+  describe("constructor", function () {
+    beforeEach(deployAll);
+
+    it("rejects a zero usdc or zero vault address", async () => {
+      const Core = await ethers.getContractFactory("SavingCore");
+      await expect(Core.deploy(ethers.ZeroAddress, await vault.getAddress())).to.be.revertedWith("zero addr");
+      await expect(Core.deploy(await usdc.getAddress(), ethers.ZeroAddress)).to.be.revertedWith("zero addr");
+    });
+  });
+
+  describe("pause / unpause admin", function () {
+    beforeEach(async () => { await deployAll(); await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, PENALTY_BPS); });
+
+    it("is owner-only in both directions, and unpause restores functionality", async () => {
+      await expect(core.connect(alice).pause()).to.be.reverted;
+      await core.connect(owner).pause();
+      await expect(core.connect(alice).openDeposit(0n, 1000n * M)).to.be.reverted;
+      await expect(core.connect(alice).unpause()).to.be.reverted;
+      await core.connect(owner).unpause();
+      await expect(core.connect(alice).openDeposit(0n, 1000n * M)).to.not.be.reverted;
     });
   });
 
@@ -127,6 +177,10 @@ describe("SavingCore", function () {
     it("rejects disabled plan", async () => {
       await core.connect(owner).disablePlan(0n);
       await expect(core.connect(alice).openDeposit(0n, 1000n * M)).to.be.revertedWith("plan disabled");
+    });
+
+    it("rejects an out-of-range planId", async () => {
+      await expect(core.connect(alice).openDeposit(1n, 1000n * M)).to.be.revertedWith("no plan");
     });
 
     it("rejects when paused", async () => {
@@ -175,6 +229,19 @@ describe("SavingCore", function () {
     it("reverts if not owner", async () => {
       await time.increase(Number(TENOR_DAYS) * DAY);
       await expect(core.connect(bob).withdrawAtMaturity(0n)).to.be.revertedWith("not owner");
+    });
+
+    it("reverts when paused", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await core.connect(owner).pause();
+      await expect(core.connect(alice).withdrawAtMaturity(0n)).to.be.reverted;
+    });
+
+    it("claimInterest reverts when paused and when called by a non-owner", async () => {
+      await core.connect(owner).pause();
+      await expect(core.connect(alice).claimInterest(0n)).to.be.reverted;
+      await core.connect(owner).unpause();
+      await expect(core.connect(bob).claimInterest(0n)).to.be.revertedWith("not owner");
     });
 
     it("the NFT owner (buyer) can withdraw after transfer", async () => {
@@ -245,6 +312,17 @@ describe("SavingCore", function () {
       await core.connect(owner).pause();
       await expect(core.connect(alice).earlyWithdraw(0n)).to.be.reverted;
     });
+
+    it("skips the fee transfer when the plan's penalty is zero", async () => {
+      await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, 0n); // planId 1, zero penalty
+      await core.connect(alice).openDeposit(1n, 500n * M);
+      const before = await usdc.balanceOf(alice.address);
+      const feeBefore = await usdc.balanceOf(fee.address);
+      await expect(core.connect(alice).earlyWithdraw(1n))
+        .to.emit(core, "Withdrawn").withArgs(1n, alice.address, 500n * M, 0n, true);
+      expect(await usdc.balanceOf(alice.address)).to.equal(before + 500n * M); // full principal, no penalty
+      expect(await usdc.balanceOf(fee.address)).to.equal(feeBefore); // fee receiver untouched
+    });
   });
 
   describe("renewDeposit (manual)", function () {
@@ -279,6 +357,11 @@ describe("SavingCore", function () {
       await time.increase(Number(TENOR_DAYS) * DAY);
       await core.connect(owner).disablePlan(1n);
       await expect(core.connect(alice).renewDeposit(0n, 1n)).to.be.revertedWith("plan disabled");
+    });
+
+    it("reverts renewing into an out-of-range planId", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY);
+      await expect(core.connect(alice).renewDeposit(0n, 99n)).to.be.revertedWith("no plan");
     });
 
     it("reverts if not owner / not active", async () => {
@@ -341,6 +424,31 @@ describe("SavingCore", function () {
       await expect(core.connect(keeper).autoRenewDeposit(0n)).to.be.revertedWith("grace not passed");
     });
 
+    describe("grace boundary (Open Question #5): >= semantics at maturityAt + GRACE_PERIOD", function () {
+      // The contract requires `block.timestamp >= d.maturityAt + GRACE_PERIOD`. A normal
+      // time.increase/increaseTo call followed by a state-changing tx would let the tx's own
+      // block consume an extra ~1s, overshooting the exact second we want to probe. We pin the
+      // NEXT block's timestamp directly with time.setNextBlockTimestamp so the transaction under
+      // test itself lands on the exact boundary second — no reverted call is mined (ethers'
+      // pre-flight gas estimation rejects it before broadcast), so there is no stray block to
+      // account for between the two assertions.
+      it("reverts with 'grace not passed' at exactly maturityAt + GRACE_PERIOD - 1", async () => {
+        const d = await core.deposits(0n);
+        const gracePeriod = await core.GRACE_PERIOD();
+        const boundary = d.maturityAt + gracePeriod - 1n;
+        await time.setNextBlockTimestamp(boundary);
+        await expect(core.connect(keeper).autoRenewDeposit(0n)).to.be.revertedWith("grace not passed");
+      });
+
+      it("succeeds at exactly maturityAt + GRACE_PERIOD", async () => {
+        const d = await core.deposits(0n);
+        const gracePeriod = await core.GRACE_PERIOD();
+        const boundary = d.maturityAt + gracePeriod;
+        await time.setNextBlockTimestamp(boundary);
+        await expect(core.connect(keeper).autoRenewDeposit(0n)).to.not.be.reverted;
+      });
+    });
+
     it("anyone can call after grace; APR is locked to original; keeper is paid from vault", async () => {
       const interest = await core.previewInterest(0n);
       await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
@@ -383,6 +491,21 @@ describe("SavingCore", function () {
       await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
       await core.connect(keeper).autoRenewDeposit(0n);
       await expect(core.connect(keeper).autoRenewDeposit(0n)).to.be.revertedWith("not active");
+    });
+
+    it("reverts when paused", async () => {
+      await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+      await core.connect(owner).pause();
+      await expect(core.connect(keeper).autoRenewDeposit(0n)).to.be.reverted;
+    });
+
+    it("pays no keeper reward when keeperRewardBps is zero", async () => {
+      await core.connect(owner).setKeeperRewardBps(0); // override the beforeEach's 50 bps
+      await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+      const keeperBefore = await usdc.balanceOf(keeper.address);
+      const tx = await core.connect(keeper).autoRenewDeposit(0n);
+      await expect(tx).to.not.emit(core, "KeeperRewardPaid");
+      expect(await usdc.balanceOf(keeper.address)).to.equal(keeperBefore); // no USDC reward paid
     });
 
     describe("C1: principal always safe when vault is short", function () {
