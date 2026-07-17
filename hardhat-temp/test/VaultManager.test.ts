@@ -58,4 +58,49 @@ describe("VaultManager", function () {
     await expect(vault.connect(owner).setFeeReceiver(fee.address)).to.emit(vault, "FeeReceiverUpdated").withArgs(fee.address);
     expect(await vault.feeReceiver()).to.equal(fee.address);
   });
+
+  describe("timelock withdraw", function () {
+    const M = 1_000_000n;
+    beforeEach(async () => {
+      await vault.connect(owner).fundVault(100n * M);
+    });
+
+    it("requires schedule then delay then execute", async () => {
+      const { time } = require("@nomicfoundation/hardhat-network-helpers");
+      await expect(vault.connect(owner).executeWithdrawVault()).to.be.revertedWith("nothing scheduled");
+      await expect(vault.connect(owner).scheduleWithdrawVault(30n * M))
+        .to.emit(vault, "VaultWithdrawScheduled");
+      // too early
+      await expect(vault.connect(owner).executeWithdrawVault()).to.be.revertedWith("timelock not elapsed");
+      await time.increase(2 * 24 * 3600);
+      const before = await usdc.balanceOf(owner.address);
+      await expect(vault.connect(owner).executeWithdrawVault())
+        .to.emit(vault, "VaultWithdrawExecuted").withArgs(30n * M);
+      expect(await usdc.balanceOf(owner.address)).to.equal(before + 30n * M);
+      expect(await vault.vaultBalance()).to.equal(70n * M);
+    });
+
+    it("can cancel a scheduled withdrawal", async () => {
+      await vault.connect(owner).scheduleWithdrawVault(30n * M);
+      await expect(vault.connect(owner).cancelScheduledWithdrawal()).to.emit(vault, "VaultWithdrawCancelled");
+      await expect(vault.connect(owner).executeWithdrawVault()).to.be.revertedWith("nothing scheduled");
+    });
+
+    it("only owner can schedule/execute/cancel", async () => {
+      await expect(vault.connect(user).scheduleWithdrawVault(1n * M)).to.be.reverted;
+      await vault.connect(owner).scheduleWithdrawVault(1n * M);
+      await expect(vault.connect(user).executeWithdrawVault()).to.be.reverted;
+      await expect(vault.connect(user).cancelScheduledWithdrawal()).to.be.reverted;
+    });
+
+    it("caps execution at current balance", async () => {
+      const { time } = require("@nomicfoundation/hardhat-network-helpers");
+      await vault.connect(owner).scheduleWithdrawVault(200n * M); // more than balance
+      await time.increase(2 * 24 * 3600);
+      const before = await usdc.balanceOf(owner.address);
+      await vault.connect(owner).executeWithdrawVault();
+      expect(await usdc.balanceOf(owner.address)).to.equal(before + 100n * M); // capped
+      expect(await vault.vaultBalance()).to.equal(0n);
+    });
+  });
 });

@@ -17,10 +17,17 @@ contract VaultManager is IVaultManager, Ownable, Pausable {
     address public savingCore;
     address public feeReceiver;
 
+    uint256 public constant TIMELOCK_DELAY = 2 days;
+    uint256 public pendingWithdrawAmount;
+    uint256 public withdrawExecutableAt;
+
     event Funded(uint256 amount);
     event FeeReceiverUpdated(address receiver);
     event InterestPaid(address to, uint256 amount);
     event SavingCoreSet(address core);
+    event VaultWithdrawScheduled(uint256 amount, uint256 executeAfter);
+    event VaultWithdrawExecuted(uint256 amount);
+    event VaultWithdrawCancelled();
 
     modifier onlySavingCore() {
         require(msg.sender == savingCore, "only saving core");
@@ -71,6 +78,35 @@ contract VaultManager is IVaultManager, Ownable, Pausable {
 
     function vaultBalance() external view override returns (uint256) {
         return usdc.balanceOf(address(this));
+    }
+
+    /// @notice Schedule a vault withdrawal. Must wait TIMELOCK_DELAY before executing.
+    function scheduleWithdrawVault(uint256 amount) external onlyOwner {
+        require(amount > 0, "amount zero");
+        pendingWithdrawAmount = amount;
+        withdrawExecutableAt = block.timestamp + TIMELOCK_DELAY;
+        emit VaultWithdrawScheduled(amount, withdrawExecutableAt);
+    }
+
+    /// @notice Execute a previously scheduled withdrawal after the timelock elapses.
+    /// @dev Caps at current balance so it never reverts on rounding/underfund.
+    function executeWithdrawVault() external onlyOwner {
+        require(withdrawExecutableAt != 0, "nothing scheduled");
+        require(block.timestamp >= withdrawExecutableAt, "timelock not elapsed");
+        uint256 amount = pendingWithdrawAmount;
+        uint256 bal = usdc.balanceOf(address(this));
+        if (amount > bal) amount = bal;
+        pendingWithdrawAmount = 0;
+        withdrawExecutableAt = 0;
+        if (amount > 0) usdc.safeTransfer(owner(), amount);
+        emit VaultWithdrawExecuted(amount);
+    }
+
+    function cancelScheduledWithdrawal() external onlyOwner {
+        require(withdrawExecutableAt != 0, "nothing scheduled");
+        pendingWithdrawAmount = 0;
+        withdrawExecutableAt = 0;
+        emit VaultWithdrawCancelled();
     }
 
     function pause() external onlyOwner {
