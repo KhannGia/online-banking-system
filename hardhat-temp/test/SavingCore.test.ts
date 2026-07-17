@@ -293,5 +293,38 @@ describe("SavingCore", function () {
       await core.connect(owner).pause();
       await expect(core.connect(alice).renewDeposit(0n, 1n)).to.be.reverted;
     });
+
+    describe("C1: principal always safe when vault is short", function () {
+      it("does not compound unpaid interest, records pendingInterest on the old deposit, and lets owner claim later", async () => {
+        // interest is deterministic and vault-independent — capture before draining
+        const interest = await core.previewInterest(0n);
+
+        // drain the vault via the real timelock
+        await vault.connect(owner).scheduleWithdrawVault(await vault.vaultBalance());
+        await time.increase(2 * DAY);
+        await vault.connect(owner).executeWithdrawVault();
+        expect(await vault.vaultBalance()).to.equal(0n);
+
+        await time.increase(Number(TENOR_DAYS) * DAY);
+        const tx = await core.connect(alice).renewDeposit(0n, 1n);
+
+        // new principal did NOT compound unpaid interest (vault paid nothing)
+        const newPrincipal = 1000n * M;
+        await expect(tx).to.emit(core, "Renewed").withArgs(0n, 1n, newPrincipal, 1n);
+        expect((await core.deposits(1n)).principal).to.equal(newPrincipal);
+
+        // shortfall recorded on the OLD deposit, which is left ManualRenewed
+        expect((await core.deposits(0n)).pendingInterest).to.equal(interest);
+        expect((await core.deposits(0n)).status).to.equal(2); // ManualRenewed
+
+        // old NFT still works as a claim ticket once the vault is refunded
+        await vault.connect(owner).fundVault(interest);
+        const before = await usdc.balanceOf(alice.address);
+        await expect(core.connect(alice).claimInterest(0n))
+          .to.emit(core, "InterestClaimed").withArgs(0n, alice.address, interest);
+        expect(await usdc.balanceOf(alice.address)).to.equal(before + interest);
+        expect((await core.deposits(0n)).pendingInterest).to.equal(0n);
+      });
+    });
   });
 });
