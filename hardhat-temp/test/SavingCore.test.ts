@@ -327,4 +327,92 @@ describe("SavingCore", function () {
       });
     });
   });
+
+  describe("autoRenewDeposit (keeper, bonus G)", function () {
+    beforeEach(async () => {
+      await deployAll();
+      await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, PENALTY_BPS); // plan 0
+      await core.connect(owner).setKeeperRewardBps(50); // 0.5% of interest to keeper
+      await core.connect(alice).openDeposit(0n, 1000n * M);
+    });
+
+    it("reverts before grace period ends", async () => {
+      await time.increase(Number(TENOR_DAYS) * DAY); // exactly maturity, grace not passed
+      await expect(core.connect(keeper).autoRenewDeposit(0n)).to.be.revertedWith("grace not passed");
+    });
+
+    it("anyone can call after grace; APR is locked to original; keeper is paid from vault", async () => {
+      const interest = await core.previewInterest(0n);
+      await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+      const keeperBefore = await usdc.balanceOf(keeper.address);
+      const reward = (interest * 50n) / 10_000n;
+
+      const tx = await core.connect(keeper).autoRenewDeposit(0n);
+      const newPrincipal = 1000n * M + interest;
+      await expect(tx).to.emit(core, "Renewed").withArgs(0n, 1n, newPrincipal, 0n);
+      await expect(tx).to.emit(core, "KeeperRewardPaid").withArgs(0n, keeper.address, reward);
+
+      // keeper got the reward
+      expect(await usdc.balanceOf(keeper.address)).to.equal(keeperBefore + reward);
+      // old status AutoRenewed
+      expect((await core.deposits(0n)).status).to.equal(3);
+      // new deposit: SAME tenor + SAME (original) APR, minted to alice (original owner)
+      const nd = await core.deposits(1n);
+      expect(nd.aprBpsAtOpen).to.equal(APR_BPS);
+      expect(nd.tenorDaysAtOpen).to.equal(TENOR_DAYS);
+      expect(nd.principal).to.equal(newPrincipal);
+      expect(await core.ownerOf(1n)).to.equal(alice.address);
+    });
+
+    it("uses original APR even if admin lowered the plan rate", async () => {
+      await core.connect(owner).updatePlan(0n, 100n); // drop plan APR
+      const interest = await core.previewInterest(0n); // still original 225 bps
+      await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+      await core.connect(keeper).autoRenewDeposit(0n);
+      expect((await core.deposits(1n)).aprBpsAtOpen).to.equal(APR_BPS);
+      expect((await core.deposits(1n)).principal).to.equal(1000n * M + interest);
+    });
+
+    it("works even if the original plan was disabled (continues old terms)", async () => {
+      await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+      await core.connect(owner).disablePlan(0n);
+      await expect(core.connect(keeper).autoRenewDeposit(0n)).to.not.be.reverted;
+    });
+
+    it("reverts on non-active deposit", async () => {
+      await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+      await core.connect(keeper).autoRenewDeposit(0n);
+      await expect(core.connect(keeper).autoRenewDeposit(0n)).to.be.revertedWith("not active");
+    });
+
+    describe("C1: principal always safe when vault is short", function () {
+      it("does not compound unpaid interest, records pendingInterest on the old deposit, and pays the keeper nothing", async () => {
+        // interest is deterministic and vault-independent — capture before draining
+        const interest = await core.previewInterest(0n);
+
+        // drain the vault via the real timelock
+        await vault.connect(owner).scheduleWithdrawVault(await vault.vaultBalance());
+        await time.increase(2 * DAY);
+        await vault.connect(owner).executeWithdrawVault();
+        expect(await vault.vaultBalance()).to.equal(0n);
+
+        await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+        const keeperBefore = await usdc.balanceOf(keeper.address);
+        const tx = await core.connect(keeper).autoRenewDeposit(0n);
+
+        // new principal did NOT compound unpaid interest (vault paid nothing)
+        const newPrincipal = 1000n * M;
+        await expect(tx).to.emit(core, "Renewed").withArgs(0n, 1n, newPrincipal, 0n);
+        expect((await core.deposits(1n)).principal).to.equal(newPrincipal);
+
+        // full shortfall recorded on the OLD deposit, left AutoRenewed
+        expect((await core.deposits(0n)).pendingInterest).to.equal(interest);
+        expect((await core.deposits(0n)).status).to.equal(3); // AutoRenewed
+
+        // keeper got nothing (vault empty — reward unpayable), and no event for a zero amount
+        expect(await usdc.balanceOf(keeper.address)).to.equal(keeperBefore);
+        await expect(tx).to.not.emit(core, "KeeperRewardPaid");
+      });
+    });
+  });
 });

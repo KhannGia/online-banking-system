@@ -261,6 +261,51 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         emit Renewed(depositId, newDepositId, newPrincipal, newPlanId);
     }
 
+    /// @notice Permissionless auto-renew after the grace period (bonus G).
+    ///         Anyone may call; caller earns keeperRewardBps of the interest, paid from the vault
+    ///         on top of the user's interest (never from principal). Uses the ORIGINAL snapshot
+    ///         (same tenor, original APR/penalty) so the user is protected from rate cuts.
+    function autoRenewDeposit(uint256 depositId)
+        external
+        whenNotPaused
+        nonReentrant
+        returns (uint256 newDepositId)
+    {
+        Deposit storage d = deposits[depositId];
+        require(d.status == DepositStatus.Active, "not active");
+        require(block.timestamp >= d.maturityAt + GRACE_PERIOD, "grace not passed");
+
+        address owner_ = ownerOf(depositId);
+        uint256 interest = _computeInterest(d);
+
+        // Effects
+        d.status = DepositStatus.AutoRenewed;
+
+        // Interest to compound is paid into this contract first. User has priority over keeper.
+        uint256 paidInterest = vault.payInterest(address(this), interest);
+        if (paidInterest < interest) {
+            d.pendingInterest = interest - paidInterest;
+        }
+        uint256 newPrincipal = d.principal + paidInterest;
+
+        // Keeper reward, only from what the vault can still afford, sent to caller directly.
+        uint256 reward = Math.mulDiv(interest, keeperRewardBps, BPS_DENOMINATOR);
+        uint256 paidReward = reward > 0 ? vault.payInterest(msg.sender, reward) : 0;
+        if (paidReward > 0) {
+            emit KeeperRewardPaid(depositId, msg.sender, paidReward);
+        }
+
+        newDepositId = _mintRenewal(
+            owner_,
+            d.planId,
+            newPrincipal,
+            d.aprBpsAtOpen,
+            d.penaltyBpsAtOpen,
+            d.tenorDaysAtOpen
+        );
+        emit Renewed(depositId, newDepositId, newPrincipal, d.planId);
+    }
+
     function _mintRenewal(
         address to,
         uint256 planId,
