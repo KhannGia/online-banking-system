@@ -17,17 +17,18 @@ The default plan created at deploy time uses this student's assigned variant:
 
 ## Prerequisites
 
-- Node.js and npm (dependencies are already installed in this checkout — do not run `npm install` unless you know you need to).
+- Node.js and npm.
 - MetaMask (or another injected wallet) for manual testing.
 - The sibling `../hardhat-temp` project for running a local node / deploying.
 
 ## Run locally against Hardhat
 
-1. In `../hardhat-temp/`: `npx hardhat node` (keep it running in its own terminal).
+1. In `../hardhat-temp/`: `npm install`, then `npx hardhat node` (keep it running in its own terminal).
 2. In `../hardhat-temp/`: `npx hardhat deploy --network localhost`.
-3. In this folder (`frontend/`): `npm run dev`.
-   - `npm run codegen` is only needed if you redeployed to fresh addresses (a brand-new node instance). It regenerates `src/generated.ts` and `src/config/deployBlocks.json` from the contract artifacts under `../hardhat-temp/deployments/`.
-4. Open the printed local URL (Vite's default is `http://localhost:5173`).
+3. In this folder (`frontend/`): `npm install`.
+4. In this folder: `npm run codegen` is required once after deploy to pick up the contract addresses and deployment block.
+5. In this folder: `npm run dev`.
+6. Open the printed local URL (Vite's default is `http://localhost:5173`).
 
 ### MetaMask setup for the local chain
 
