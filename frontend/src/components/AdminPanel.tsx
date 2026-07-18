@@ -3,26 +3,17 @@ import { useAccount, useReadContract, useReadContracts, useBlock } from 'wagmi'
 import { savingCoreAbi, vaultManagerAbi, mockUsdcAbi } from '../generated'
 import { getAddress } from '../config/contracts'
 import { useSystemState } from '../hooks/useSystemState'
-import { formatUsdc, parseUsdc, formatCountdown } from '../lib/format'
+import { formatUsdc, formatCountdown, safeUsdc, safeBigInt } from '../lib/format'
 import { TxButton } from './TxButton'
 
 const box = 'border border-slate-800 rounded-xl p-4 space-y-3'
 const input = 'w-full bg-slate-800 rounded-md px-3 py-2 outline-none text-sm'
 
-/**
- * parseUsdc/BigInt both throw on malformed input ('', 'abc', a bare '.', etc). This
- * panel's numeric fields are read on every keystroke, so a naive inline parse in JSX
- * would throw mid-render the moment someone clears an input or types a stray letter —
- * blanking the whole panel. Parse defensively once per render and fall back to `null`
- * so callers can gate the corresponding TxButton's `disabled` on it instead of crashing.
- */
-function safeUsdc(s: string): bigint | null {
-  try { return parseUsdc(s.trim() || '0') } catch { return null }
-}
-function safeBigInt(s: string): bigint | null {
-  const t = s.trim()
-  if (!/^\d+$/.test(t)) return null
-  try { return BigInt(t) } catch { return null }
+// UI should never offer a button whose tx would revert on a malformed address —
+// gate on this instead of a bare non-empty check.
+const EVM_ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/
+function isValidAddress(s: string): boolean {
+  return EVM_ADDRESS_RE.test(s)
 }
 
 export function AdminPanel({ onChanged }: { onChanged: () => void }) {
@@ -90,12 +81,12 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
   const schedVal = safeUsdc(sched)
   const schedValid = schedVal !== null && schedVal > 0n
 
-  const feeValid = fee.trim().length > 0
+  const feeValid = isValidAddress(fee)
   const keeperVal = safeBigInt(keeper)
   const keeperValid = keeperVal !== null
 
   const mintAmtVal = safeUsdc(mintAmt)
-  const mintValid = mintTo.trim().length > 0 && mintAmtVal !== null && mintAmtVal > 0n
+  const mintValid = isValidAddress(mintTo) && mintAmtVal !== null && mintAmtVal > 0n
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -169,7 +160,7 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
           <input className={input} value={mintAmt} onChange={(e) => setMintAmt(e.target.value)} placeholder="Amount (USDC)" />
         </div>
         <TxButton key="mint" label="Mint" address={usdc} abi={mockUsdcAbi} functionName="mint"
-          args={mintTo.trim().length > 0 && mintAmtVal !== null ? [mintTo as `0x${string}`, mintAmtVal] : undefined}
+          args={mintValid ? [mintTo as `0x${string}`, mintAmtVal] : undefined}
           disabled={!mintValid} onConfirmed={onChanged} />
       </div>
     </div>
