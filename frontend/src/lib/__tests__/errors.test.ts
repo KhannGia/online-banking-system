@@ -17,3 +17,34 @@ describe('decodeRevert', () => {
     expect(decodeRevert(null)).toBe('Transaction failed')
   })
 })
+
+describe('decodeRevert - full revert table coverage', () => {
+  it.each<[string, string]>([
+    ['execution reverted: already matured', 'Deposit has already matured — use Withdraw.'],
+    ['execution reverted: grace not passed', 'Grace period has not passed yet.'],
+    ['execution reverted: not active', 'This deposit is no longer active.'],
+    ['execution reverted: nothing pending', 'No pending interest to claim.'],
+    ['execution reverted: not owner', 'You are not the owner of this deposit.'],
+    ['execution reverted: below min', 'Amount is below the plan minimum.'],
+    ['execution reverted: above max', 'Amount is above the plan maximum.'],
+    ['execution reverted: bad apr', 'Invalid plan parameters.'],
+    ['execution reverted: bad tenor', 'Invalid plan parameters.'],
+    ['execution reverted: bad penalty', 'Invalid plan parameters.'],
+    ['execution reverted: bad limits', 'Invalid plan parameters.'],
+    ['execution reverted: bad bps', 'Invalid plan parameters.'],
+    ['execution reverted: timelock not elapsed', 'Timelock delay has not elapsed.'],
+    ['execution reverted: nothing scheduled', 'No scheduled withdrawal.'],
+    ['ReentrancyGuardReentrantCall()', 'Reentrant call blocked.'],
+    ['User denied transaction signature', 'You rejected the request.'],
+    ['execution reverted: insufficient allowance', 'Token allowance too low — approve first.'],
+    ['execution reverted: transfer amount exceeds allowance', 'Token allowance too low — approve first.'],
+  ])('maps %j to the exact message %j', (input, expected) => {
+    expect(decodeRevert(new Error(input))).toBe(expected)
+  })
+
+  it('falls back to shortMessage when the error text matches no known pattern', () => {
+    expect(
+      decodeRevert({ shortMessage: 'Wallet error XYZ', message: 'unrelated internal detail zzz' })
+    ).toBe('Wallet error XYZ')
+  })
+})
