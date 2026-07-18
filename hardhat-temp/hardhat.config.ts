@@ -39,7 +39,7 @@ const reportGas = process.env.REPORT_GAS;
 module.exports = {
   networks: {
     "sepolia": {
-      url: "https://eth-sepolia.public.blastapi.io",
+      url: "https://ethereum-sepolia-rpc.publicnode.com",
       chainId: 11155111,
       accounts: testnetPrivateKey ? [testnetPrivateKey] : [],
       timeout: 40000,
