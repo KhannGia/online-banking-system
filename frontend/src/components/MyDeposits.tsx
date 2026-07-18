@@ -1,4 +1,4 @@
-import { useAccount } from 'wagmi'
+import { useAccount, useBlock } from 'wagmi'
 import { useDeposits } from '../hooks/useDeposits'
 import { useSystemState } from '../hooks/useSystemState'
 import { DepositRow } from './DepositRow'
@@ -7,7 +7,14 @@ export function MyDeposits({ onChanged }: { onChanged: () => void }) {
   const { isConnected } = useAccount()
   const { deposits, isLoading } = useDeposits()
   const { gracePeriod, corePaused } = useSystemState()
-  const now = Math.floor(Date.now() / 1000)
+  // Use the chain's latest block timestamp (not the machine's wall clock) so action
+  // gating tracks block.timestamp — the clock the contract itself evaluates guards
+  // against. This also tracks evm_increaseTime jumps used in local-chain demos, which
+  // Date.now() would never see. Poll on an interval so a deposit crossing maturity
+  // while the tab is open updates its available actions. Fall back to the wall clock
+  // only until the first block arrives, so `now` is never 0.
+  const { data: block } = useBlock({ watch: true, query: { refetchInterval: 5_000 } })
+  const now = block ? Number(block.timestamp) : Math.floor(Date.now() / 1000)
 
   if (!isConnected) return <div className="text-slate-400">Connect a wallet to see your deposits.</div>
   if (isLoading) return <div className="text-slate-400">Loading your deposits…</div>
