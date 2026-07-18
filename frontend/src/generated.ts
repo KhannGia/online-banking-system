@@ -1,0 +1,3042 @@
+import {
+  createUseReadContract,
+  createUseWriteContract,
+  createUseSimulateContract,
+  createUseWatchContractEvent,
+} from 'wagmi/codegen'
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MockUSDC
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ *
+ */
+export const mockUsdcAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'allowance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC20InsufficientAllowance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC20InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'approver', internalType: 'address', type: 'address' }],
+    name: 'ERC20InvalidApprover',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'receiver', internalType: 'address', type: 'address' }],
+    name: 'ERC20InvalidReceiver',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'sender', internalType: 'address', type: 'address' }],
+    name: 'ERC20InvalidSender',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'spender', internalType: 'address', type: 'address' }],
+    name: 'ERC20InvalidSpender',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'spender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'value',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'value',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'spender', internalType: 'address', type: 'address' },
+    ],
+    name: 'allowance',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', internalType: 'uint8', type: 'uint8' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'mint',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'totalSupply',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transfer',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+/**
+ *
+ */
+export const mockUsdcAddress = {
+  31337: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+} as const
+
+/**
+ *
+ */
+export const mockUsdcConfig = {
+  address: mockUsdcAddress,
+  abi: mockUsdcAbi,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SavingCore
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ *
+ */
+export const savingCoreAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      { name: '_usdc', internalType: 'address', type: 'address' },
+      { name: '_vault', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC721IncorrectOwner',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC721InsufficientApproval',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'approver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidApprover',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'operator', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOperator',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'receiver', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidReceiver',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'sender', internalType: 'address', type: 'address' }],
+    name: 'ERC721InvalidSender',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ERC721NonexistentToken',
+  },
+  { type: 'error', inputs: [], name: 'EnforcedPause' },
+  { type: 'error', inputs: [], name: 'ExpectedPause' },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'approved',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'operator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'approved', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'ApprovalForAll',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'depositId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'planId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'principal',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'maturityAt',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'aprBpsAtOpen',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'DepositOpened',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'depositId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'InterestClaimed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'depositId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'keeper',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'KeeperRewardPaid',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'bps', internalType: 'uint256', type: 'uint256', indexed: false },
+    ],
+    name: 'KeeperRewardUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Paused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'planId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'tenorDays',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'aprBps',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'PlanCreated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'planId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'PlanDisabled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'planId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'PlanEnabled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'planId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newAprBps',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'PlanUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldDepositId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newDepositId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newPrincipal',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newPlanId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Renewed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'tokenId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Unpaused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'depositId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'principal',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'interest',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'isEarly', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'Withdrawn',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'BPS_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'GRACE_PERIOD',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_APR_BPS',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SECONDS_PER_DAY',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'SECONDS_PER_YEAR',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'depositId', internalType: 'uint256', type: 'uint256' }],
+    name: 'autoRenewDeposit',
+    outputs: [
+      { name: 'newDepositId', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'depositId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claimInterest',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'tenorDays', internalType: 'uint256', type: 'uint256' },
+      { name: 'aprBps', internalType: 'uint256', type: 'uint256' },
+      { name: 'minDeposit', internalType: 'uint256', type: 'uint256' },
+      { name: 'maxDeposit', internalType: 'uint256', type: 'uint256' },
+      { name: 'penaltyBps', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'createPlan',
+    outputs: [{ name: 'planId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    name: 'deposits',
+    outputs: [
+      { name: 'planId', internalType: 'uint256', type: 'uint256' },
+      { name: 'principal', internalType: 'uint256', type: 'uint256' },
+      { name: 'startAt', internalType: 'uint256', type: 'uint256' },
+      { name: 'maturityAt', internalType: 'uint256', type: 'uint256' },
+      { name: 'aprBpsAtOpen', internalType: 'uint256', type: 'uint256' },
+      { name: 'penaltyBpsAtOpen', internalType: 'uint256', type: 'uint256' },
+      { name: 'tenorDaysAtOpen', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'status',
+        internalType: 'enum SavingCore.DepositStatus',
+        type: 'uint8',
+      },
+      { name: 'pendingInterest', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'planId', internalType: 'uint256', type: 'uint256' }],
+    name: 'disablePlan',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'depositId', internalType: 'uint256', type: 'uint256' }],
+    name: 'earlyWithdraw',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'planId', internalType: 'uint256', type: 'uint256' }],
+    name: 'enablePlan',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getApproved',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'operator', internalType: 'address', type: 'address' },
+    ],
+    name: 'isApprovedForAll',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'keeperRewardBps',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'nextDepositId',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'planId', internalType: 'uint256', type: 'uint256' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'openDeposit',
+    outputs: [{ name: 'depositId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ownerOf',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'paused',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'planCount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'planId', internalType: 'uint256', type: 'uint256' }],
+    name: 'plans',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct SavingCore.Plan',
+        type: 'tuple',
+        components: [
+          { name: 'tenorDays', internalType: 'uint256', type: 'uint256' },
+          { name: 'aprBps', internalType: 'uint256', type: 'uint256' },
+          { name: 'minDeposit', internalType: 'uint256', type: 'uint256' },
+          { name: 'maxDeposit', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'earlyWithdrawPenaltyBps',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'enabled', internalType: 'bool', type: 'bool' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'depositId', internalType: 'uint256', type: 'uint256' }],
+    name: 'previewInterest',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'depositId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newPlanId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'renewDeposit',
+    outputs: [
+      { name: 'newDepositId', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'operator', internalType: 'address', type: 'address' },
+      { name: 'approved', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'setApprovalForAll',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'bps', internalType: 'uint256', type: 'uint256' }],
+    name: 'setKeeperRewardBps',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'tokenId', internalType: 'uint256', type: 'uint256' }],
+    name: 'tokenURI',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'tokenId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'unpause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'planId', internalType: 'uint256', type: 'uint256' },
+      { name: 'newAprBps', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'updatePlan',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'usdc',
+    outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'vault',
+    outputs: [
+      { name: '', internalType: 'contract IVaultManager', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'depositId', internalType: 'uint256', type: 'uint256' }],
+    name: 'withdrawAtMaturity',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+/**
+ *
+ */
+export const savingCoreAddress = {
+  31337: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
+} as const
+
+/**
+ *
+ */
+export const savingCoreConfig = {
+  address: savingCoreAddress,
+  abi: savingCoreAbi,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// VaultManager
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ *
+ */
+export const vaultManagerAbi = [
+  {
+    type: 'constructor',
+    inputs: [{ name: '_usdc', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
+  },
+  { type: 'error', inputs: [], name: 'EnforcedPause' },
+  { type: 'error', inputs: [], name: 'ExpectedPause' },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'receiver',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'FeeReceiverUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Funded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address', indexed: false },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'InterestPaid',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Paused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'core',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'SavingCoreSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Unpaused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [],
+    name: 'VaultWithdrawCancelled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'VaultWithdrawExecuted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'executeAfter',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'VaultWithdrawScheduled',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TIMELOCK_DELAY',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'cancelScheduledWithdrawal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'executeWithdrawVault',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'feeReceiver',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
+    name: 'fundVault',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'paused',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'payInterest',
+    outputs: [{ name: 'paid', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pendingWithdrawAmount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'savingCore',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
+    name: 'scheduleWithdrawVault',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_receiver', internalType: 'address', type: 'address' }],
+    name: 'setFeeReceiver',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_core', internalType: 'address', type: 'address' }],
+    name: 'setSavingCore',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'unpause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'usdc',
+    outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'vaultBalance',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'withdrawExecutableAt',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+] as const
+
+/**
+ *
+ */
+export const vaultManagerAddress = {
+  31337: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+} as const
+
+/**
+ *
+ */
+export const vaultManagerConfig = {
+  address: vaultManagerAddress,
+  abi: vaultManagerAbi,
+} as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// React
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link mockUsdcAbi}__
+ *
+ *
+ */
+export const useReadMockUsdc = /*#__PURE__*/ createUseReadContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"allowance"`
+ *
+ *
+ */
+export const useReadMockUsdcAllowance = /*#__PURE__*/ createUseReadContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'allowance',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"balanceOf"`
+ *
+ *
+ */
+export const useReadMockUsdcBalanceOf = /*#__PURE__*/ createUseReadContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'balanceOf',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"decimals"`
+ *
+ *
+ */
+export const useReadMockUsdcDecimals = /*#__PURE__*/ createUseReadContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'decimals',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"name"`
+ *
+ *
+ */
+export const useReadMockUsdcName = /*#__PURE__*/ createUseReadContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'name',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"symbol"`
+ *
+ *
+ */
+export const useReadMockUsdcSymbol = /*#__PURE__*/ createUseReadContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'symbol',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"totalSupply"`
+ *
+ *
+ */
+export const useReadMockUsdcTotalSupply = /*#__PURE__*/ createUseReadContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'totalSupply',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link mockUsdcAbi}__
+ *
+ *
+ */
+export const useWriteMockUsdc = /*#__PURE__*/ createUseWriteContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"approve"`
+ *
+ *
+ */
+export const useWriteMockUsdcApprove = /*#__PURE__*/ createUseWriteContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'approve',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"mint"`
+ *
+ *
+ */
+export const useWriteMockUsdcMint = /*#__PURE__*/ createUseWriteContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'mint',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"transfer"`
+ *
+ *
+ */
+export const useWriteMockUsdcTransfer = /*#__PURE__*/ createUseWriteContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'transfer',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"transferFrom"`
+ *
+ *
+ */
+export const useWriteMockUsdcTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: mockUsdcAbi,
+    address: mockUsdcAddress,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link mockUsdcAbi}__
+ *
+ *
+ */
+export const useSimulateMockUsdc = /*#__PURE__*/ createUseSimulateContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"approve"`
+ *
+ *
+ */
+export const useSimulateMockUsdcApprove =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: mockUsdcAbi,
+    address: mockUsdcAddress,
+    functionName: 'approve',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"mint"`
+ *
+ *
+ */
+export const useSimulateMockUsdcMint = /*#__PURE__*/ createUseSimulateContract({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+  functionName: 'mint',
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"transfer"`
+ *
+ *
+ */
+export const useSimulateMockUsdcTransfer =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: mockUsdcAbi,
+    address: mockUsdcAddress,
+    functionName: 'transfer',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link mockUsdcAbi}__ and `functionName` set to `"transferFrom"`
+ *
+ *
+ */
+export const useSimulateMockUsdcTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: mockUsdcAbi,
+    address: mockUsdcAddress,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link mockUsdcAbi}__
+ *
+ *
+ */
+export const useWatchMockUsdcEvent = /*#__PURE__*/ createUseWatchContractEvent({
+  abi: mockUsdcAbi,
+  address: mockUsdcAddress,
+})
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link mockUsdcAbi}__ and `eventName` set to `"Approval"`
+ *
+ *
+ */
+export const useWatchMockUsdcApprovalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: mockUsdcAbi,
+    address: mockUsdcAddress,
+    eventName: 'Approval',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link mockUsdcAbi}__ and `eventName` set to `"Transfer"`
+ *
+ *
+ */
+export const useWatchMockUsdcTransferEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: mockUsdcAbi,
+    address: mockUsdcAddress,
+    eventName: 'Transfer',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__
+ *
+ *
+ */
+export const useReadSavingCore = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"BPS_DENOMINATOR"`
+ *
+ *
+ */
+export const useReadSavingCoreBpsDenominator =
+  /*#__PURE__*/ createUseReadContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'BPS_DENOMINATOR',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"GRACE_PERIOD"`
+ *
+ *
+ */
+export const useReadSavingCoreGracePeriod = /*#__PURE__*/ createUseReadContract(
+  {
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'GRACE_PERIOD',
+  },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"MAX_APR_BPS"`
+ *
+ *
+ */
+export const useReadSavingCoreMaxAprBps = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'MAX_APR_BPS',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"SECONDS_PER_DAY"`
+ *
+ *
+ */
+export const useReadSavingCoreSecondsPerDay =
+  /*#__PURE__*/ createUseReadContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'SECONDS_PER_DAY',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"SECONDS_PER_YEAR"`
+ *
+ *
+ */
+export const useReadSavingCoreSecondsPerYear =
+  /*#__PURE__*/ createUseReadContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'SECONDS_PER_YEAR',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"balanceOf"`
+ *
+ *
+ */
+export const useReadSavingCoreBalanceOf = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'balanceOf',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"deposits"`
+ *
+ *
+ */
+export const useReadSavingCoreDeposits = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'deposits',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"getApproved"`
+ *
+ *
+ */
+export const useReadSavingCoreGetApproved = /*#__PURE__*/ createUseReadContract(
+  {
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'getApproved',
+  },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"isApprovedForAll"`
+ *
+ *
+ */
+export const useReadSavingCoreIsApprovedForAll =
+  /*#__PURE__*/ createUseReadContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'isApprovedForAll',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"keeperRewardBps"`
+ *
+ *
+ */
+export const useReadSavingCoreKeeperRewardBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'keeperRewardBps',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"name"`
+ *
+ *
+ */
+export const useReadSavingCoreName = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'name',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"nextDepositId"`
+ *
+ *
+ */
+export const useReadSavingCoreNextDepositId =
+  /*#__PURE__*/ createUseReadContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'nextDepositId',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"owner"`
+ *
+ *
+ */
+export const useReadSavingCoreOwner = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'owner',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"ownerOf"`
+ *
+ *
+ */
+export const useReadSavingCoreOwnerOf = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'ownerOf',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"paused"`
+ *
+ *
+ */
+export const useReadSavingCorePaused = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'paused',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"planCount"`
+ *
+ *
+ */
+export const useReadSavingCorePlanCount = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'planCount',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"plans"`
+ *
+ *
+ */
+export const useReadSavingCorePlans = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'plans',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"previewInterest"`
+ *
+ *
+ */
+export const useReadSavingCorePreviewInterest =
+  /*#__PURE__*/ createUseReadContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'previewInterest',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"supportsInterface"`
+ *
+ *
+ */
+export const useReadSavingCoreSupportsInterface =
+  /*#__PURE__*/ createUseReadContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'supportsInterface',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"symbol"`
+ *
+ *
+ */
+export const useReadSavingCoreSymbol = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'symbol',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"tokenURI"`
+ *
+ *
+ */
+export const useReadSavingCoreTokenUri = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'tokenURI',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"usdc"`
+ *
+ *
+ */
+export const useReadSavingCoreUsdc = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'usdc',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"vault"`
+ *
+ *
+ */
+export const useReadSavingCoreVault = /*#__PURE__*/ createUseReadContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'vault',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__
+ *
+ *
+ */
+export const useWriteSavingCore = /*#__PURE__*/ createUseWriteContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"approve"`
+ *
+ *
+ */
+export const useWriteSavingCoreApprove = /*#__PURE__*/ createUseWriteContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'approve',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"autoRenewDeposit"`
+ *
+ *
+ */
+export const useWriteSavingCoreAutoRenewDeposit =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'autoRenewDeposit',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"claimInterest"`
+ *
+ *
+ */
+export const useWriteSavingCoreClaimInterest =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'claimInterest',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"createPlan"`
+ *
+ *
+ */
+export const useWriteSavingCoreCreatePlan =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'createPlan',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"disablePlan"`
+ *
+ *
+ */
+export const useWriteSavingCoreDisablePlan =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'disablePlan',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"earlyWithdraw"`
+ *
+ *
+ */
+export const useWriteSavingCoreEarlyWithdraw =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'earlyWithdraw',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"enablePlan"`
+ *
+ *
+ */
+export const useWriteSavingCoreEnablePlan =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'enablePlan',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"openDeposit"`
+ *
+ *
+ */
+export const useWriteSavingCoreOpenDeposit =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'openDeposit',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"pause"`
+ *
+ *
+ */
+export const useWriteSavingCorePause = /*#__PURE__*/ createUseWriteContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'pause',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"renewDeposit"`
+ *
+ *
+ */
+export const useWriteSavingCoreRenewDeposit =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'renewDeposit',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ *
+ */
+export const useWriteSavingCoreRenounceOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"safeTransferFrom"`
+ *
+ *
+ */
+export const useWriteSavingCoreSafeTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'safeTransferFrom',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"setApprovalForAll"`
+ *
+ *
+ */
+export const useWriteSavingCoreSetApprovalForAll =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'setApprovalForAll',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"setKeeperRewardBps"`
+ *
+ *
+ */
+export const useWriteSavingCoreSetKeeperRewardBps =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'setKeeperRewardBps',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"transferFrom"`
+ *
+ *
+ */
+export const useWriteSavingCoreTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ *
+ */
+export const useWriteSavingCoreTransferOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"unpause"`
+ *
+ *
+ */
+export const useWriteSavingCoreUnpause = /*#__PURE__*/ createUseWriteContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+  functionName: 'unpause',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"updatePlan"`
+ *
+ *
+ */
+export const useWriteSavingCoreUpdatePlan =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'updatePlan',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"withdrawAtMaturity"`
+ *
+ *
+ */
+export const useWriteSavingCoreWithdrawAtMaturity =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'withdrawAtMaturity',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__
+ *
+ *
+ */
+export const useSimulateSavingCore = /*#__PURE__*/ createUseSimulateContract({
+  abi: savingCoreAbi,
+  address: savingCoreAddress,
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"approve"`
+ *
+ *
+ */
+export const useSimulateSavingCoreApprove =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'approve',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"autoRenewDeposit"`
+ *
+ *
+ */
+export const useSimulateSavingCoreAutoRenewDeposit =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'autoRenewDeposit',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"claimInterest"`
+ *
+ *
+ */
+export const useSimulateSavingCoreClaimInterest =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'claimInterest',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"createPlan"`
+ *
+ *
+ */
+export const useSimulateSavingCoreCreatePlan =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'createPlan',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"disablePlan"`
+ *
+ *
+ */
+export const useSimulateSavingCoreDisablePlan =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'disablePlan',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"earlyWithdraw"`
+ *
+ *
+ */
+export const useSimulateSavingCoreEarlyWithdraw =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'earlyWithdraw',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"enablePlan"`
+ *
+ *
+ */
+export const useSimulateSavingCoreEnablePlan =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'enablePlan',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"openDeposit"`
+ *
+ *
+ */
+export const useSimulateSavingCoreOpenDeposit =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'openDeposit',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"pause"`
+ *
+ *
+ */
+export const useSimulateSavingCorePause =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'pause',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"renewDeposit"`
+ *
+ *
+ */
+export const useSimulateSavingCoreRenewDeposit =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'renewDeposit',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ *
+ */
+export const useSimulateSavingCoreRenounceOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"safeTransferFrom"`
+ *
+ *
+ */
+export const useSimulateSavingCoreSafeTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'safeTransferFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"setApprovalForAll"`
+ *
+ *
+ */
+export const useSimulateSavingCoreSetApprovalForAll =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'setApprovalForAll',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"setKeeperRewardBps"`
+ *
+ *
+ */
+export const useSimulateSavingCoreSetKeeperRewardBps =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'setKeeperRewardBps',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"transferFrom"`
+ *
+ *
+ */
+export const useSimulateSavingCoreTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ *
+ */
+export const useSimulateSavingCoreTransferOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"unpause"`
+ *
+ *
+ */
+export const useSimulateSavingCoreUnpause =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'unpause',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"updatePlan"`
+ *
+ *
+ */
+export const useSimulateSavingCoreUpdatePlan =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'updatePlan',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link savingCoreAbi}__ and `functionName` set to `"withdrawAtMaturity"`
+ *
+ *
+ */
+export const useSimulateSavingCoreWithdrawAtMaturity =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    functionName: 'withdrawAtMaturity',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__
+ *
+ *
+ */
+export const useWatchSavingCoreEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"Approval"`
+ *
+ *
+ */
+export const useWatchSavingCoreApprovalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'Approval',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"ApprovalForAll"`
+ *
+ *
+ */
+export const useWatchSavingCoreApprovalForAllEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'ApprovalForAll',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"DepositOpened"`
+ *
+ *
+ */
+export const useWatchSavingCoreDepositOpenedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'DepositOpened',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"InterestClaimed"`
+ *
+ *
+ */
+export const useWatchSavingCoreInterestClaimedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'InterestClaimed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"KeeperRewardPaid"`
+ *
+ *
+ */
+export const useWatchSavingCoreKeeperRewardPaidEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'KeeperRewardPaid',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"KeeperRewardUpdated"`
+ *
+ *
+ */
+export const useWatchSavingCoreKeeperRewardUpdatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'KeeperRewardUpdated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"OwnershipTransferred"`
+ *
+ *
+ */
+export const useWatchSavingCoreOwnershipTransferredEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'OwnershipTransferred',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"Paused"`
+ *
+ *
+ */
+export const useWatchSavingCorePausedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'Paused',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"PlanCreated"`
+ *
+ *
+ */
+export const useWatchSavingCorePlanCreatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'PlanCreated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"PlanDisabled"`
+ *
+ *
+ */
+export const useWatchSavingCorePlanDisabledEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'PlanDisabled',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"PlanEnabled"`
+ *
+ *
+ */
+export const useWatchSavingCorePlanEnabledEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'PlanEnabled',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"PlanUpdated"`
+ *
+ *
+ */
+export const useWatchSavingCorePlanUpdatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'PlanUpdated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"Renewed"`
+ *
+ *
+ */
+export const useWatchSavingCoreRenewedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'Renewed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"Transfer"`
+ *
+ *
+ */
+export const useWatchSavingCoreTransferEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'Transfer',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"Unpaused"`
+ *
+ *
+ */
+export const useWatchSavingCoreUnpausedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'Unpaused',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link savingCoreAbi}__ and `eventName` set to `"Withdrawn"`
+ *
+ *
+ */
+export const useWatchSavingCoreWithdrawnEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: savingCoreAbi,
+    address: savingCoreAddress,
+    eventName: 'Withdrawn',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__
+ *
+ *
+ */
+export const useReadVaultManager = /*#__PURE__*/ createUseReadContract({
+  abi: vaultManagerAbi,
+  address: vaultManagerAddress,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"TIMELOCK_DELAY"`
+ *
+ *
+ */
+export const useReadVaultManagerTimelockDelay =
+  /*#__PURE__*/ createUseReadContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'TIMELOCK_DELAY',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"feeReceiver"`
+ *
+ *
+ */
+export const useReadVaultManagerFeeReceiver =
+  /*#__PURE__*/ createUseReadContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'feeReceiver',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"owner"`
+ *
+ *
+ */
+export const useReadVaultManagerOwner = /*#__PURE__*/ createUseReadContract({
+  abi: vaultManagerAbi,
+  address: vaultManagerAddress,
+  functionName: 'owner',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"paused"`
+ *
+ *
+ */
+export const useReadVaultManagerPaused = /*#__PURE__*/ createUseReadContract({
+  abi: vaultManagerAbi,
+  address: vaultManagerAddress,
+  functionName: 'paused',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"pendingWithdrawAmount"`
+ *
+ *
+ */
+export const useReadVaultManagerPendingWithdrawAmount =
+  /*#__PURE__*/ createUseReadContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'pendingWithdrawAmount',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"savingCore"`
+ *
+ *
+ */
+export const useReadVaultManagerSavingCore =
+  /*#__PURE__*/ createUseReadContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'savingCore',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"usdc"`
+ *
+ *
+ */
+export const useReadVaultManagerUsdc = /*#__PURE__*/ createUseReadContract({
+  abi: vaultManagerAbi,
+  address: vaultManagerAddress,
+  functionName: 'usdc',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"vaultBalance"`
+ *
+ *
+ */
+export const useReadVaultManagerVaultBalance =
+  /*#__PURE__*/ createUseReadContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'vaultBalance',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"withdrawExecutableAt"`
+ *
+ *
+ */
+export const useReadVaultManagerWithdrawExecutableAt =
+  /*#__PURE__*/ createUseReadContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'withdrawExecutableAt',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__
+ *
+ *
+ */
+export const useWriteVaultManager = /*#__PURE__*/ createUseWriteContract({
+  abi: vaultManagerAbi,
+  address: vaultManagerAddress,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"cancelScheduledWithdrawal"`
+ *
+ *
+ */
+export const useWriteVaultManagerCancelScheduledWithdrawal =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'cancelScheduledWithdrawal',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"executeWithdrawVault"`
+ *
+ *
+ */
+export const useWriteVaultManagerExecuteWithdrawVault =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'executeWithdrawVault',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"fundVault"`
+ *
+ *
+ */
+export const useWriteVaultManagerFundVault =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'fundVault',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"pause"`
+ *
+ *
+ */
+export const useWriteVaultManagerPause = /*#__PURE__*/ createUseWriteContract({
+  abi: vaultManagerAbi,
+  address: vaultManagerAddress,
+  functionName: 'pause',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"payInterest"`
+ *
+ *
+ */
+export const useWriteVaultManagerPayInterest =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'payInterest',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ *
+ */
+export const useWriteVaultManagerRenounceOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"scheduleWithdrawVault"`
+ *
+ *
+ */
+export const useWriteVaultManagerScheduleWithdrawVault =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'scheduleWithdrawVault',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"setFeeReceiver"`
+ *
+ *
+ */
+export const useWriteVaultManagerSetFeeReceiver =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'setFeeReceiver',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"setSavingCore"`
+ *
+ *
+ */
+export const useWriteVaultManagerSetSavingCore =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'setSavingCore',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ *
+ */
+export const useWriteVaultManagerTransferOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"unpause"`
+ *
+ *
+ */
+export const useWriteVaultManagerUnpause = /*#__PURE__*/ createUseWriteContract(
+  {
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'unpause',
+  },
+)
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__
+ *
+ *
+ */
+export const useSimulateVaultManager = /*#__PURE__*/ createUseSimulateContract({
+  abi: vaultManagerAbi,
+  address: vaultManagerAddress,
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"cancelScheduledWithdrawal"`
+ *
+ *
+ */
+export const useSimulateVaultManagerCancelScheduledWithdrawal =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'cancelScheduledWithdrawal',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"executeWithdrawVault"`
+ *
+ *
+ */
+export const useSimulateVaultManagerExecuteWithdrawVault =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'executeWithdrawVault',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"fundVault"`
+ *
+ *
+ */
+export const useSimulateVaultManagerFundVault =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'fundVault',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"pause"`
+ *
+ *
+ */
+export const useSimulateVaultManagerPause =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'pause',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"payInterest"`
+ *
+ *
+ */
+export const useSimulateVaultManagerPayInterest =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'payInterest',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"renounceOwnership"`
+ *
+ *
+ */
+export const useSimulateVaultManagerRenounceOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"scheduleWithdrawVault"`
+ *
+ *
+ */
+export const useSimulateVaultManagerScheduleWithdrawVault =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'scheduleWithdrawVault',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"setFeeReceiver"`
+ *
+ *
+ */
+export const useSimulateVaultManagerSetFeeReceiver =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'setFeeReceiver',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"setSavingCore"`
+ *
+ *
+ */
+export const useSimulateVaultManagerSetSavingCore =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'setSavingCore',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"transferOwnership"`
+ *
+ *
+ */
+export const useSimulateVaultManagerTransferOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link vaultManagerAbi}__ and `functionName` set to `"unpause"`
+ *
+ *
+ */
+export const useSimulateVaultManagerUnpause =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    functionName: 'unpause',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__
+ *
+ *
+ */
+export const useWatchVaultManagerEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"FeeReceiverUpdated"`
+ *
+ *
+ */
+export const useWatchVaultManagerFeeReceiverUpdatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'FeeReceiverUpdated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"Funded"`
+ *
+ *
+ */
+export const useWatchVaultManagerFundedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'Funded',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"InterestPaid"`
+ *
+ *
+ */
+export const useWatchVaultManagerInterestPaidEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'InterestPaid',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"OwnershipTransferred"`
+ *
+ *
+ */
+export const useWatchVaultManagerOwnershipTransferredEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'OwnershipTransferred',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"Paused"`
+ *
+ *
+ */
+export const useWatchVaultManagerPausedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'Paused',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"SavingCoreSet"`
+ *
+ *
+ */
+export const useWatchVaultManagerSavingCoreSetEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'SavingCoreSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"Unpaused"`
+ *
+ *
+ */
+export const useWatchVaultManagerUnpausedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'Unpaused',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"VaultWithdrawCancelled"`
+ *
+ *
+ */
+export const useWatchVaultManagerVaultWithdrawCancelledEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'VaultWithdrawCancelled',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"VaultWithdrawExecuted"`
+ *
+ *
+ */
+export const useWatchVaultManagerVaultWithdrawExecutedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'VaultWithdrawExecuted',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link vaultManagerAbi}__ and `eventName` set to `"VaultWithdrawScheduled"`
+ *
+ *
+ */
+export const useWatchVaultManagerVaultWithdrawScheduledEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: vaultManagerAbi,
+    address: vaultManagerAddress,
+    eventName: 'VaultWithdrawScheduled',
+  })
