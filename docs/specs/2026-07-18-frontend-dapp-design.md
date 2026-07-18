@@ -47,6 +47,8 @@ frontend/
   tailwind.config.ts
   postcss.config.js
   wagmi.config.ts                 # @wagmi/cli: ABI + typed-hook codegen
+  scripts/
+    sync-deploy-blocks.mjs        # writes src/config/deployBlocks.json from deployments/
   .env.example
   src/
     main.tsx                      # providers: Wagmi, QueryClient, RainbowKit
@@ -55,6 +57,7 @@ frontend/
     config/
       wagmi.ts                    # chains, transports, RainbowKit config
       contracts.ts                # per-chain addresses + deployment fromBlock
+      deployBlocks.json           # GENERATED: { chainId: deploymentBlockNumber } — committed
     lib/
       format.ts                   # formatUsdc / parseUsdc (6 decimals), bps→%
       deposit.ts                  # deriveDepositView() pure logic (unit-tested)
@@ -121,7 +124,9 @@ This yields typed ABIs (`savingCoreAbi`), per-chain addresses (`savingCoreAddres
 
 `src/generated.ts` is **committed** (not gitignored): local Hardhat deploy addresses are deterministic (fixed deployer + nonce order → identical addresses on every fresh node), so committing lets a grader build and run the frontend out of the box without first running codegen. Regenerate it with `npm run codegen` (`wagmi generate`) whenever addresses change (e.g. after a Sepolia deploy).
 
-The Sepolia addresses come from `deployments/sepolia/*.json` once the contracts are deployed there. `src/config/contracts.ts` also records each contract's deployment block (`receipt.blockNumber` from the deployment JSON) as the `fromBlock` for log scans (§5.2).
+The Sepolia addresses come from `deployments/sepolia/*.json` once the contracts are deployed there (§10.2) — `addressesFor` picks them up automatically, so no manual editing.
+
+`npm run codegen` runs **two** steps: `wagmi generate` (ABIs + addresses) and `node scripts/sync-deploy-blocks.mjs`, which writes `src/config/deployBlocks.json` as `{ "31337": <block>, "11155111": <block> }` from each network's `SavingCore.json` `receipt.blockNumber`. That file is committed and consumed by `deployFromBlock()` — see §5.2 for why the real block matters.
 
 ## 4. Chains & Wallet Config
 
@@ -141,7 +146,12 @@ export const config = getDefaultConfig({
 
 `main.tsx` wraps the app in `WagmiProvider` → `QueryClientProvider` → `RainbowKitProvider`.
 
-**ChainGuard**: if connected to a chain that isn't 31337 or 11155111, or if the target contract has no address on the current chain, show a "switch network" banner and disable write actions. MetaMask injected works without a WalletConnect projectId; the projectId only enriches the RainbowKit modal.
+**ChainGuard** covers two distinct failure modes, because with two supported chains a user can easily land on one where nothing is deployed:
+
+1. **Unsupported chain** — connected chain is neither 31337 nor 11155111 → "switch network" banner, writes disabled.
+2. **Supported chain, no deployment** — `getAddress()` returns `undefined` for that chainId (e.g. the user switches to Sepolia before the contracts were deployed there) → a distinct "Contracts are not deployed on this network yet" banner, writes disabled. Without this the app would silently render empty plan/deposit lists and look broken.
+
+MetaMask injected works without a WalletConnect projectId; the projectId only enriches the RainbowKit modal.
 
 ## 5. Data Layer
 
@@ -155,10 +165,14 @@ export const config = getDefaultConfig({
 
 `SavingCore` is a plain ERC-721 (no `ERC721Enumerable`) and `DepositOpened`'s `owner` arg is **not indexed**, so there is no on-chain "deposits of X" query. The hook therefore:
 
-1. `getLogs` for `DepositOpened` from the contract's deployment block (`fromBlock` in `contracts.ts`) to `latest`.
+1. `getLogs` for `DepositOpened` from the contract's deployment block (`deployFromBlock(chainId)`, backed by the generated `deployBlocks.json`) to `latest`.
 2. Collect candidate `depositId`s, filtering to logs where `owner == connectedAddress` (client-side; also include ids where a later `Renewed` minted to the user).
 3. Multicall `deposits(id)` and `ownerOf(id)` for each candidate; keep those where `ownerOf(id) == connectedAddress` (covers NFTs bought/transferred in).
 4. Return the enriched `DepositView[]` (see §5.4).
+
+**The `fromBlock` must be the real deployment block on Sepolia**, not `0`. Sepolia has millions of blocks, and public RPCs typically reject or time out on unbounded `getLogs` ranges (many cap a query at ~10k blocks). Scanning from the deployment block keeps the query to the handful of blocks that can actually contain our events. On the local Hardhat chain the chain is short, so its recorded block (usually a small number) is equally fine. This is why `deployBlocks.json` is generated rather than hardcoded.
+
+If a Sepolia scan ever exceeds an RPC's range cap, `useDeposits` should page the scan in fixed block windows (e.g. 10k) from the deployment block to `latest` rather than raising `fromBlock`.
 
 For a local demo this is instant; on Sepolia the bounded `fromBlock` keeps it cheap. Documented as a known trade-off of not using `ERC721Enumerable`.
 
@@ -252,15 +266,28 @@ VITE_WC_PROJECT_ID=      # WalletConnect Cloud projectId (optional; MetaMask wor
 VITE_SEPOLIA_RPC=        # optional Sepolia RPC URL; falls back to a public default
 ```
 
-## 10. Run & Deploy Prerequisites
+## 10. Run & Deploy
 
-Local demo:
+### 10.1 Local (Hardhat)
+
 1. In `hardhat-temp/`: `npx hardhat node` (terminal 1).
 2. In `hardhat-temp/`: `npx hardhat deploy --network localhost` (terminal 2) — writes `deployments/localhost/*.json`.
-3. In `frontend/`: `npm run codegen` (regenerates `src/generated.ts` from the fresh addresses), then `npm run dev`.
+3. In `frontend/`: `npm run codegen` (regenerates `src/generated.ts` + `deployBlocks.json`), then `npm run dev`.
 4. MetaMask: add/select the `localhost:8545` network (chainId 31337), import a Hardhat test account, use the Admin "mint" helper to get MockUSDC.
 
-Sepolia (optional, user-provided prerequisites): a funded deployer key in `hardhat-temp/.env`, then `npx hardhat deploy --network sepolia`; re-run `npm run codegen`. Requires Sepolia ETH from a faucet.
+### 10.2 Sepolia (a supported target, not an afterthought)
+
+Sepolia is one of the two chains the app ships with, so it gets a real deployment — the same `deploy/1-deploy.ts` runs against it and creates the same personal-variant default plan (180 days / 225 bps / 550 bps).
+
+**User-supplied prerequisites** (cannot be automated here): a deployer private key with Sepolia ETH from a faucet, set as `TESTNET_PRIVATE_KEY` in `hardhat-temp/.env`, and optionally `ETHERSCAN_API` for verification.
+
+1. In `hardhat-temp/`: `npx hardhat deploy --network sepolia` — writes `deployments/sepolia/*.json` (address, ABI, and `receipt.blockNumber`).
+2. Optionally verify: `npx hardhat verify --network sepolia <address> <constructorArgs…>` for each contract (hardhat-verify and the `sepolia` etherscan key are already configured).
+3. Fund the vault so interest is payable on Sepolia: use the Admin panel (mint MockUSDC → approve → `fundVault`), since a fresh deployment starts with an empty interest pool.
+4. In `frontend/`: `npm run codegen` — picks up the Sepolia addresses **and** the real deployment block automatically; commit the regenerated `generated.ts` and `deployBlocks.json`.
+5. In the app: switch the wallet to Sepolia; the same UI works against the deployed contracts.
+
+Because `deployFromBlock` now returns the true Sepolia deployment block, the `DepositOpened` scan stays inside public-RPC range limits (§5.2).
 
 ## 11. Out of Scope
 

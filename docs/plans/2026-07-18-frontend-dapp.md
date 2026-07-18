@@ -30,6 +30,7 @@ frontend/
   index.html, package.json, vite.config.ts, tsconfig.json, tsconfig.node.json
   tailwind.config.ts, postcss.config.js
   wagmi.config.ts                 # @wagmi/cli codegen config
+  scripts/sync-deploy-blocks.mjs  # writes src/config/deployBlocks.json
   .env.example
   src/
     main.tsx                      # providers
@@ -38,7 +39,8 @@ frontend/
     generated.ts                  # committed codegen output (ABIs + address maps)
     config/
       wagmi.ts                    # chains, transports, RainbowKit config
-      contracts.ts                # getAddress(name, chainId), deploy fromBlock per chain
+      contracts.ts                # getAddress(name, chainId), deployFromBlock(chainId)
+      deployBlocks.json           # committed codegen output { chainId: deployBlock }
     lib/
       format.ts                   # formatUsdc/parseUsdc/bpsToPercent/formatCountdown
       deposit.ts                  # DepositStatus, DepositRaw, deriveDepositView
@@ -122,9 +124,11 @@ In `package.json`, set the `scripts` block to:
   "build": "tsc -b && vite build",
   "preview": "vite preview",
   "test": "vitest run",
-  "codegen": "wagmi generate"
+  "codegen": "wagmi generate && node scripts/sync-deploy-blocks.mjs"
 }
 ```
+
+(`sync-deploy-blocks.mjs` is created in Task 2; until then `npm run codegen` is not run.)
 
 Replace `vite.config.ts` with (adds the vitest test env):
 
@@ -223,25 +227,53 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 3: Generate and inspect**
+- [ ] **Step 3: Write the deploy-block sync script**
+
+The deposit-log scan needs the block each deployment landed in. On Sepolia a `fromBlock` of `0` would make `getLogs` time out or be rejected (public RPCs cap the range), so this must be the real block, generated — never hardcoded.
+
+Create `frontend/scripts/sync-deploy-blocks.mjs`:
+
+```js
+// Writes src/config/deployBlocks.json = { "<chainId>": <deployment block> }
+// Source of truth: SavingCore's deployment receipt per network.
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+
+const NETS = { 31337: 'localhost', 11155111: 'sepolia' }
+const out = {}
+
+for (const [chainId, net] of Object.entries(NETS)) {
+  const path = `../hardhat-temp/deployments/${net}/SavingCore.json`
+  if (!existsSync(path)) continue
+  const dep = JSON.parse(readFileSync(path, 'utf8'))
+  const block = dep.receipt?.blockNumber
+  if (block === undefined) throw new Error(`no receipt.blockNumber in ${path}`)
+  out[chainId] = Number(block)
+}
+
+mkdirSync('src/config', { recursive: true })
+writeFileSync('src/config/deployBlocks.json', JSON.stringify(out, null, 2) + '\n')
+console.log('deployBlocks:', out)
+```
+
+- [ ] **Step 4: Generate and inspect**
 
 ```bash
 cd /home/khangia/capstone/frontend
 npm run codegen
 ```
-Expected: `src/generated.ts` is written and exports `savingCoreAbi`, `vaultManagerAbi`, `mockUsdcAbi`, and the `*Address` records containing the `31337` addresses. Confirm: `grep -c "export const savingCoreAddress" src/generated.ts` prints `1`, and the file contains the local SavingCore address.
+Expected: `src/generated.ts` is written and exports `savingCoreAbi`, `vaultManagerAbi`, `mockUsdcAbi`, and the `*Address` records containing the `31337` addresses; the script prints `deployBlocks: { '31337': <n> }` and writes `src/config/deployBlocks.json`. Confirm: `grep -c "export const savingCoreAddress" src/generated.ts` prints `1`, and `cat src/config/deployBlocks.json` shows a `31337` entry.
 
-- [ ] **Step 4: Verify the app still builds with the generated file**
+- [ ] **Step 5: Verify the app still builds with the generated file**
 
 Run: `npm run build`
 Expected: success (the generated file typechecks).
 
-- [ ] **Step 5: Commit (generated.ts committed on purpose)**
+- [ ] **Step 6: Commit (generated outputs committed on purpose)**
 
 ```bash
 cd /home/khangia/capstone
-git add frontend/wagmi.config.ts frontend/src/generated.ts
-git commit -m "feat(frontend): wagmi codegen config + generated contract ABIs/addresses"
+git add frontend/wagmi.config.ts frontend/scripts/sync-deploy-blocks.mjs frontend/src/generated.ts frontend/src/config/deployBlocks.json
+git commit -m "feat(frontend): wagmi codegen + deploy-block sync for contract wiring"
 ```
 
 Note for the executor: leave the `hardhat node` from Step 1 running — later tasks' read/write verification uses it. If it has stopped, restart it and re-run `npx hardhat deploy --network localhost` (local addresses are deterministic, so `generated.ts` stays valid).
@@ -256,8 +288,8 @@ Note for the executor: leave the `hardhat node` from Step 1 running — later ta
 - Create: `frontend/.env.example`.
 
 **Interfaces:**
-- Consumes: `src/generated.ts` address records.
-- Produces: `config` (wagmi config), `getAddress(name, chainId) → 0x…|undefined`, `deployFromBlock(chainId) → bigint`, `SUPPORTED_CHAIN_IDS`.
+- Consumes: `src/generated.ts` address records and `src/config/deployBlocks.json` (both produced by Task 2's `npm run codegen`).
+- Produces: `config` (wagmi config), `getAddress(name, chainId) → 0x…|undefined`, `isDeployedOn(chainId) → boolean`, `deployFromBlock(chainId) → bigint`, `SUPPORTED_CHAIN_IDS`, and the guard hooks `useUnsupportedChain()` / `useMissingDeployment()` plus the `ChainGuard` component.
 
 - [ ] **Step 1: Env example**
 
@@ -274,6 +306,7 @@ Create `frontend/src/config/contracts.ts`:
 
 ```ts
 import { mockUsdcAddress, vaultManagerAddress, savingCoreAddress } from '../generated'
+import deployBlocks from './deployBlocks.json'
 
 const ADDRESSES: Record<string, Record<number, `0x${string}`>> = {
   MockUSDC: mockUsdcAddress as Record<number, `0x${string}`>,
@@ -288,12 +321,24 @@ export function getAddress(name: ContractName, chainId: number): `0x${string}` |
   return ADDRESSES[name]?.[chainId]
 }
 
-// Log-scan lower bound. Local chains are short so 0 is fine; set the Sepolia
-// deploy block here after deploying there to bound the scan.
+/** True when all three contracts have an address on this chain. */
+export function isDeployedOn(chainId: number): boolean {
+  return (['MockUSDC', 'VaultManager', 'SavingCore'] as const).every((n) => !!getAddress(n, chainId))
+}
+
+/**
+ * Lower bound for the DepositOpened log scan: the block the contracts were
+ * deployed in, generated into deployBlocks.json by `npm run codegen`.
+ * Must NOT be 0 on Sepolia — public RPCs cap getLogs ranges, so an unbounded
+ * scan would time out or be rejected.
+ */
 export function deployFromBlock(chainId: number): bigint {
-  return chainId === 11155111 ? 0n : 0n
+  const blocks = deployBlocks as Record<string, number>
+  return BigInt(blocks[String(chainId)] ?? 0)
 }
 ```
+
+`tsconfig.json` must allow the JSON import — ensure `"resolveJsonModule": true` is set under `compilerOptions` (Vite's React-TS template enables it; add it if `npm run build` complains).
 
 - [ ] **Step 3: wagmi + RainbowKit config**
 
@@ -354,23 +399,47 @@ Create `frontend/src/components/ChainGuard.tsx`:
 
 ```tsx
 import { useAccount } from 'wagmi'
-import { SUPPORTED_CHAIN_IDS } from '../config/contracts'
+import { SUPPORTED_CHAIN_IDS, isDeployedOn } from '../config/contracts'
 
+/** True when connected to a chain the app doesn't support at all. */
 export function useUnsupportedChain(): boolean {
   const { chainId, isConnected } = useAccount()
   return isConnected && !!chainId && !SUPPORTED_CHAIN_IDS.includes(chainId as 31337 | 11155111)
 }
 
+/** True when the chain is supported but the contracts aren't deployed there yet. */
+export function useMissingDeployment(): boolean {
+  const { chainId, isConnected } = useAccount()
+  if (!isConnected || !chainId) return false
+  return SUPPORTED_CHAIN_IDS.includes(chainId as 31337 | 11155111) && !isDeployedOn(chainId)
+}
+
+const banner = 'border px-4 py-2 rounded-md text-sm'
+
 export function ChainGuard() {
   const unsupported = useUnsupportedChain()
-  if (!unsupported) return null
-  return (
-    <div className="bg-amber-600/20 border border-amber-500 text-amber-200 px-4 py-2 rounded-md text-sm">
-      Unsupported network. Switch to Hardhat (31337) or Sepolia (11155111) to continue.
-    </div>
-  )
+  const missing = useMissingDeployment()
+
+  if (unsupported) {
+    return (
+      <div className={`${banner} bg-amber-600/20 border-amber-500 text-amber-200`}>
+        Unsupported network. Switch to Hardhat (31337) or Sepolia (11155111) to continue.
+      </div>
+    )
+  }
+  if (missing) {
+    return (
+      <div className={`${banner} bg-amber-600/20 border-amber-500 text-amber-200`}>
+        Contracts are not deployed on this network yet. Deploy them (see the README) and re-run
+        <code className="mx-1 px-1 bg-slate-800 rounded">npm run codegen</code>, or switch networks.
+      </div>
+    )
+  }
+  return null
 }
 ```
+
+This second banner matters in practice: with two supported chains a user can switch to Sepolia before anything is deployed there, and without it the app would just render empty plan and deposit lists and look broken.
 
 - [ ] **Step 6: Header**
 
@@ -1558,7 +1627,116 @@ git commit -m "feat(frontend): owner-only admin panel (plans, vault, timelock, c
 
 ---
 
-### Task 11: Frontend README + final integration pass
+### Task 11: Deploy to Sepolia + multi-chain wiring
+
+**Files:**
+- Produce (outside frontend): `hardhat-temp/deployments/sepolia/{MockUSDC,VaultManager,SavingCore}.json`.
+- Modify (regenerate): `frontend/src/generated.ts`, `frontend/src/config/deployBlocks.json`.
+
+**Interfaces:**
+- Consumes: `wagmi.config.ts`'s `addressesFor()` and `scripts/sync-deploy-blocks.mjs` (both already handle Sepolia — they simply skip it while no deployment exists).
+- Produces: Sepolia entries (`11155111`) in the generated address maps and in `deployBlocks.json`, making the app fully functional on Sepolia.
+
+**IMPORTANT — this task needs user-supplied secrets and funds and cannot be completed autonomously.** It requires a deployer private key holding Sepolia ETH. If `hardhat-temp/.env` has no funded `TESTNET_PRIVATE_KEY`, **stop and report NEEDS_CONTEXT** rather than inventing a key, committing a key, or skipping the task silently. Never print a private key into logs, reports, or commits.
+
+- [ ] **Step 1: Confirm prerequisites**
+
+```bash
+cd /home/khangia/capstone/hardhat-temp
+# Verify a testnet key is configured WITHOUT printing it:
+node -e "require('dotenv').config();console.log('TESTNET_PRIVATE_KEY set:', !!process.env.TESTNET_PRIVATE_KEY)"
+```
+Expected: `TESTNET_PRIVATE_KEY set: true`. If `false`, STOP and report NEEDS_CONTEXT: the user must put a faucet-funded Sepolia key in `hardhat-temp/.env` (the repo's `.gitignore` already excludes `.env`).
+
+Also confirm the deployer has a balance:
+
+```bash
+npx hardhat run --network sepolia --no-compile <(echo '
+const [s] = await ethers.getSigners();
+console.log("deployer:", s.address, "balance(wei):", (await ethers.provider.getBalance(s.address)).toString());
+')
+```
+Expected: a non-zero balance. If zero, STOP and report NEEDS_CONTEXT (user must use a Sepolia faucet).
+
+- [ ] **Step 2: Deploy to Sepolia**
+
+```bash
+cd /home/khangia/capstone/hardhat-temp
+npx hardhat deploy --network sepolia
+```
+Expected: the three addresses print; `deployments/sepolia/MockUSDC.json`, `VaultManager.json`, `SavingCore.json` now exist, each with `address`, `abi`, and `receipt.blockNumber`. The script's idempotency guards also run `setSavingCore` once and create the default 180-day / 225-bps / 550-bps plan.
+
+Sepolia is slower than local — allow several minutes. If a tx times out, re-run the command: `hardhat-deploy` reuses existing deployments and only completes what's missing.
+
+- [ ] **Step 3: Verify the deployment wired itself correctly**
+
+```bash
+cd /home/khangia/capstone/hardhat-temp
+npx hardhat run --network sepolia --no-compile <(echo '
+const d = require("./deployments/sepolia/SavingCore.json");
+const v = require("./deployments/sepolia/VaultManager.json");
+const core = await ethers.getContractAt("SavingCore", d.address);
+const vault = await ethers.getContractAt("VaultManager", v.address);
+console.log("savingCore wired:", await vault.savingCore(), "expected:", d.address);
+console.log("planCount:", (await core.planCount()).toString());
+const p = await core.plans(0);
+console.log("plan0 tenor/apr/penalty:", p.tenorDays.toString(), p.aprBps.toString(), p.earlyWithdrawPenaltyBps.toString());
+')
+```
+Expected: `savingCore wired` equals the SavingCore address; `planCount: 1`; plan0 prints `180 225 550` (the personal-variant values).
+
+- [ ] **Step 4: Regenerate frontend wiring for both chains**
+
+```bash
+cd /home/khangia/capstone/frontend
+npm run codegen
+```
+Expected: the script prints `deployBlocks: { '31337': <n>, '11155111': <sepoliaBlock> }`, and `src/generated.ts` address maps now contain `11155111` entries. Confirm with `cat src/config/deployBlocks.json` — the Sepolia block must be the real (large) block number, not 0.
+
+- [ ] **Step 5: Verify the build and the Sepolia read path**
+
+Run: `npm run build`
+Expected: success.
+
+Then confirm the app's log-scan bound is usable on a public RPC. Create `frontend/scripts/smoke-sepolia.mjs`:
+
+```js
+import { createPublicClient, http } from 'viem'
+import { sepolia } from 'viem/chains'
+import { readFileSync } from 'node:fs'
+
+const dep = JSON.parse(readFileSync('../hardhat-temp/deployments/sepolia/SavingCore.json', 'utf8'))
+const blocks = JSON.parse(readFileSync('src/config/deployBlocks.json', 'utf8'))
+const client = createPublicClient({ chain: sepolia, transport: http(process.env.VITE_SEPOLIA_RPC || undefined) })
+
+const count = await client.readContract({ address: dep.address, abi: dep.abi, functionName: 'planCount' })
+console.log('sepolia planCount =', count)
+
+const logs = await client.getContractEvents({
+  address: dep.address, abi: dep.abi, eventName: 'DepositOpened',
+  fromBlock: BigInt(blocks['11155111']), toBlock: 'latest',
+})
+console.log('DepositOpened logs scanned OK, count =', logs.length)
+```
+
+Run: `node scripts/smoke-sepolia.mjs`
+Expected: `sepolia planCount = 1n` and the log scan completes without an RPC range error (count may be 0 — no deposits yet; completing without error is the point). If the RPC rejects the range, that is the paging case noted in the spec — report it. Delete the script after: `rm scripts/smoke-sepolia.mjs`.
+
+- [ ] **Step 6: Commit (no secrets)**
+
+Before committing, confirm no key leaked: `git status --short` must not list `hardhat-temp/.env`, and `git diff --cached` must contain no private key.
+
+```bash
+cd /home/khangia/capstone
+git add frontend/src/generated.ts frontend/src/config/deployBlocks.json hardhat-temp/deployments/sepolia
+git commit -m "feat: deploy contracts to Sepolia and wire frontend for both chains"
+```
+
+Note: the Sepolia interest vault starts empty. To demo interest payouts there, use the Admin panel (mint MockUSDC → approve → fundVault) — this is a runtime action, not part of this task.
+
+---
+
+### Task 12: Frontend README + final integration pass
 
 **Files:**
 - Create: `frontend/README.md`.
@@ -1609,16 +1787,23 @@ React + wagmi + RainbowKit UI for the SavingCore term-deposit contracts.
 3. In this folder: `npm install`, then `npm run codegen` (only needed if you re-deployed to fresh addresses), then `npm run dev`.
 4. In MetaMask: add network `http://127.0.0.1:8545` (chainId 31337), import a Hardhat test account. Use the Admin tab's Mint button to get MockUSDC.
 
-## Sepolia (optional)
+## Sepolia
 
-Deploy the contracts to Sepolia (`npx hardhat deploy --network sepolia` with a funded key in `../hardhat-temp/.env`), run `npm run codegen`, then select Sepolia in the wallet.
+The app ships supporting Sepolia as well as local Hardhat.
+
+1. Put a faucet-funded deployer key in `../hardhat-temp/.env` as `TESTNET_PRIVATE_KEY` (never commit it — `.env` is gitignored).
+2. In `../hardhat-temp/`: `npx hardhat deploy --network sepolia`.
+3. In this folder: `npm run codegen` (picks up the Sepolia addresses and the real deployment block automatically), then commit the regenerated `src/generated.ts` and `src/config/deployBlocks.json`.
+4. Switch the wallet to Sepolia. The vault starts empty there — use the Admin tab (mint → approve → Fund vault) before demoing interest payouts.
+
+If you connect to a supported chain before the contracts are deployed on it, the app shows a "Contracts are not deployed on this network yet" banner rather than an empty screen.
 
 ## Scripts
 
 - `npm run dev` — dev server
 - `npm run build` — typecheck + production build
 - `npm test` — unit tests (format / deposit-logic / errors)
-- `npm run codegen` — regenerate `src/generated.ts` from contract deployments
+- `npm run codegen` — regenerate `src/generated.ts` **and** `src/config/deployBlocks.json` from the contract deployments (run after any deploy)
 
 ## Config
 
@@ -1650,10 +1835,16 @@ git commit -m "feat(frontend): connect/paused states + run docs"
 - Spec §6 screens → PlansView/OpenDepositDialog (Task 8), MyDeposits/DepositRow/RenewDialog (Task 9), AdminPanel (Task 10), Header (Task 3).
 - Spec §7 flows (two-step approve, revert decode, refetch, guards) → Task 6 (errors), Task 8 (approve), TxButton refetch via `onConfirmed`+`invalidateQueries`, Task 11 (guards).
 - Spec §8 testing → Tasks 4/5/6 Vitest units; manual smoke noted in Tasks 7–10.
-- Spec §9 env → Task 3 `.env.example`. §10 run/deploy → Task 2 + Task 11 README.
+- Spec §9 env → Task 3 `.env.example`.
+- Spec §10.1 local run → Task 2 (deploy + codegen) + Task 12 README.
+- Spec §10.2 Sepolia → **Task 11** (deploy, wiring verification, regenerated addresses + real deploy block, RPC range smoke) + Task 12 README.
+- Spec §4 missing-deployment guard → Task 3 `useMissingDeployment` / second ChainGuard banner.
+- Spec §5.2 real `fromBlock` → Task 2 `sync-deploy-blocks.mjs` + Task 3 `deployFromBlock`.
 
 Open follow-ups for the executor:
 - Keep one `hardhat node` running from Task 2 onward; deterministic local addresses keep `generated.ts` valid across restarts (re-deploy if the node was reset).
 - wagmi's generated per-function hooks are not required; the plan deliberately uses wagmi's base `useReadContract(s)`/`useWriteContract` with the generated `*Abi`/`*Address` constants for stability.
 - The open-deposit interest preview is computed client-side via `quoteInterest` (Task 5), not by calling the on-chain `previewInterest` (which needs an existing depositId). `quoteInterest` is unit-tested against both contract worked examples, so the quote and the eventual on-chain interest agree.
 - `useReadContracts` over heterogeneous ABIs widens result types; the plan casts each `.result` explicitly (`as bigint`, etc.) — keep those casts, they are intentional, not laziness.
+- Task 11 (Sepolia) depends on user-supplied secrets and faucet funds. It is ordered last among the build tasks on purpose: Tasks 1–10 deliver a fully working local dApp, so if the Sepolia key or funds never materialise, everything else still stands and only Task 11 is blocked. Report NEEDS_CONTEXT rather than faking or skipping it.
+- Never commit `hardhat-temp/.env` or print a private key. `deployments/sepolia/*.json` contain only public data (addresses, ABIs, receipts) and are safe to commit.
