@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { savingCoreAbi, mockUsdcAbi } from '../generated'
 import { getAddress } from '../config/contracts'
-import { formatUsdc, parseUsdc } from '../lib/format'
+import { formatUsdc, parseUsdc, bpsToPercent } from '../lib/format'
 import { quoteInterest } from '../lib/deposit'
 import { TxButton } from './TxButton'
 import type { Plan } from '../hooks/usePlans'
@@ -38,18 +38,18 @@ export function OpenDepositDialog({ plan, onClose, onDone }: { plan: Plan; onClo
         {amount > 0n && (
           <p className="text-xs text-slate-400">
             Est. interest at maturity: {formatUsdc(quoteInterest(amount, plan.aprBps, plan.tenorDays))} USDC
-            {' '}(over {plan.tenorDays.toString()} days at {(Number(plan.aprBps) / 100)}% APR)
+            {' '}(over {plan.tenorDays.toString()} days at {bpsToPercent(plan.aprBps)} APR)
           </p>
         )}
         {belowMin && <p className="text-xs text-red-400">Below plan minimum.</p>}
         {aboveMax && <p className="text-xs text-red-400">Above plan maximum.</p>}
         <div className="flex gap-2 justify-end">
           {needsApproval ? (
-            <TxButton label="Approve" address={usdc} abi={mockUsdcAbi} functionName="approve"
+            <TxButton key="approve" label="Approve" address={usdc} abi={mockUsdcAbi} functionName="approve"
               args={core ? [core, amount] : undefined} disabled={!amountValid || !core}
               onConfirmed={() => refetchAllowance()} />
           ) : (
-            <TxButton label="Open deposit" address={core} abi={savingCoreAbi} functionName="openDeposit"
+            <TxButton key="open" label="Open deposit" address={core} abi={savingCoreAbi} functionName="openDeposit"
               args={[plan.planId, amount]} disabled={!amountValid}
               onConfirmed={() => { onDone(); onClose() }} />
           )}
