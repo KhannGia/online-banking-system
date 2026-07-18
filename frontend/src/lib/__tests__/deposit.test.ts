@@ -28,6 +28,11 @@ describe('deriveDepositView', () => {
     const v = deriveDepositView(base, maturity + GRACE, GRACE, true)
     expect(v.actions).toMatchObject({ withdrawAtMaturity: false, earlyWithdraw: false, renew: false, autoRenew: false, claimInterest: false })
   })
+  it('paused: claimInterest is off even with pending interest', () => {
+    const withPending: DepositRaw = { ...base, pendingInterest: 500n }
+    const v = deriveDepositView(withPending, maturity + GRACE, GRACE, true)
+    expect(v.actions.claimInterest).toBe(false)
+  })
   it('pendingInterest gates claim independent of status', () => {
     const withdrawn: DepositRaw = { ...base, status: DepositStatus.Withdrawn, pendingInterest: 500n }
     const v = deriveDepositView(withdrawn, maturity + 1, GRACE, false)
