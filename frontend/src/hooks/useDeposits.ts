@@ -2,7 +2,7 @@ import { useAccount, usePublicClient, useReadContracts } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { savingCoreAbi } from '../generated'
 import { getAddress, deployFromBlock, isDeployedOn } from '../config/contracts'
-import type { DepositRaw } from '../lib/deposit'
+import { decodeDeposit, type DepositRaw } from '../lib/deposit'
 
 export function useDeposits() {
   const { address, chainId } = useAccount()
@@ -45,23 +45,12 @@ export function useDeposits() {
       const owner = data[i * 2]?.result as `0x${string}` | undefined
       // `deposits(id)` is an auto-generated public-mapping getter with NINE separate
       // outputs, so viem decodes it as a positional tuple/array, not a named object.
-      // Destructure by index (see fe-task-7 Correction 1).
+      // decodeDeposit() maps by index and is pinned by tests (see lib/deposit.ts).
       const t = data[i * 2 + 1]?.result as
         | readonly [bigint, bigint, bigint, bigint, bigint, bigint, bigint, number, bigint]
         | undefined
       if (owner && t && owner.toLowerCase() === address!.toLowerCase()) {
-        deposits.push({
-          depositId: ids[i],
-          planId: t[0],
-          principal: t[1],
-          startAt: t[2],
-          maturityAt: t[3],
-          aprBpsAtOpen: t[4],
-          penaltyBpsAtOpen: t[5],
-          tenorDaysAtOpen: t[6],
-          status: Number(t[7]),
-          pendingInterest: t[8],
-        })
+        deposits.push(decodeDeposit(t, ids[i]))
       }
     }
   }

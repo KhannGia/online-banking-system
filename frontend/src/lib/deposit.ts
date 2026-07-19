@@ -14,6 +14,28 @@ export type DepositRaw = {
   pendingInterest: bigint
 }
 
+// `SavingCore.deposits(id)` is an auto-generated public-mapping getter with NINE
+// separate ABI outputs, so viem decodes it as a positional tuple/array, not a named
+// object. Map by index here, once, so the mapping is pinned by a test rather than
+// re-derived (and easy to silently mis-map) at every call site.
+export function decodeDeposit(
+  tuple: readonly [bigint, bigint, bigint, bigint, bigint, bigint, bigint, number, bigint],
+  depositId: bigint,
+): DepositRaw {
+  return {
+    depositId,
+    planId: tuple[0],
+    principal: tuple[1],
+    startAt: tuple[2],
+    maturityAt: tuple[3],
+    aprBpsAtOpen: tuple[4],
+    penaltyBpsAtOpen: tuple[5],
+    tenorDaysAtOpen: tuple[6],
+    status: Number(tuple[7]),
+    pendingInterest: tuple[8],
+  }
+}
+
 export type DepositView = {
   statusLabel: string
   isActive: boolean

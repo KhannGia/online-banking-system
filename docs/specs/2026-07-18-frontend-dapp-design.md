@@ -230,7 +230,9 @@ Table of the user's deposits (`useDeposits`). Each row shows id, plan, principal
 - **Demo helper:** `MockUSDC.mint(to, amount)` to fund test accounts.
 
 ### 6.5 TxButton
-A shared component wrapping `useSimulateContract` → `useWriteContract` → `useWaitForTransactionReceipt`, driving: disabled while simulating/pending, a toast per phase (pending/confirmed/reverted), and query invalidation on success so plans/deposits/balances refetch.
+A shared component wrapping `useWriteContract` → `useWaitForTransactionReceipt`, driving: disabled while pending, a toast per phase (pending/confirmed/reverted), and query invalidation on success so plans/deposits/balances refetch.
+
+**Deviation from the original design:** this component was planned to also wrap `useSimulateContract`, running a dry-run before `useWriteContract` so a reverting call fails fast (no wallet popup at all). The shipped implementation skips simulation and calls `writeContract` directly. The consequence is that a reverting transaction only surfaces its failure after the user has already signed and submitted it, rather than being caught before the wallet prompt appears. This is mitigated by three layers that keep the UI from offering a reverting action in the first place: `deriveDepositView`'s contract-mirroring gating (row actions are hidden unless the contract's require-guards would pass), per-form input validation (amount bounds, address checks) before a button is even enabled, and `decodeRevert`-based toasts that give a friendly message on the rare revert that does slip through (e.g. a race with another actor's transaction).
 
 ## 7. Transaction Flows & Error Handling
 

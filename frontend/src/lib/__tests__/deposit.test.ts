@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deriveDepositView, DepositStatus, type DepositRaw } from '../deposit'
+import { deriveDepositView, decodeDeposit, DepositStatus, type DepositRaw } from '../deposit'
 
 const GRACE = 3 * 86400
 const base: DepositRaw = {
@@ -84,5 +84,42 @@ describe('quoteInterest', () => {
   })
   it('truncates sub-unit interest to zero', () => {
     expect(quoteInterest(10n, 1n, 1n)).toBe(0n)
+  })
+})
+
+describe('decodeDeposit', () => {
+  // Nine distinct values, one per field, so that transposing any two indices
+  // in decodeDeposit's mapping makes at least one of these assertions fail.
+  const tuple = [
+    11n, // [0] planId
+    22n, // [1] principal
+    33n, // [2] startAt
+    44n, // [3] maturityAt
+    55n, // [4] aprBpsAtOpen
+    66n, // [5] penaltyBpsAtOpen
+    77n, // [6] tenorDaysAtOpen
+    3, // [7] status (AutoRenewed)
+    99n, // [8] pendingInterest
+  ] as const
+
+  it('maps each tuple index to the correct named field, positionally', () => {
+    const d = decodeDeposit(tuple, 1234n)
+    expect(d).toEqual({
+      depositId: 1234n,
+      planId: 11n,
+      principal: 22n,
+      startAt: 33n,
+      maturityAt: 44n,
+      aprBpsAtOpen: 55n,
+      penaltyBpsAtOpen: 66n,
+      tenorDaysAtOpen: 77n,
+      status: 3,
+      pendingInterest: 99n,
+    })
+  })
+
+  it('coerces status to a number', () => {
+    const d = decodeDeposit(tuple, 1234n)
+    expect(typeof d.status).toBe('number')
   })
 })

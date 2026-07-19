@@ -15,7 +15,7 @@ export default function App() {
   const queryClient = useQueryClient()
   const refreshAll = () => queryClient.invalidateQueries()
   const { isConnected } = useAccount()
-  const { corePaused } = useSystemState()
+  const { corePaused, vaultPaused } = useSystemState()
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -25,6 +25,11 @@ export default function App() {
         {corePaused && (
           <div className="bg-rose-600/20 border border-rose-500 text-rose-200 px-4 py-2 rounded-md text-sm">
             System is paused — deposits and withdrawals are disabled.
+          </div>
+        )}
+        {!corePaused && vaultPaused && (
+          <div className="bg-rose-600/20 border border-rose-500 text-rose-200 px-4 py-2 rounded-md text-sm">
+            Interest payouts are paused — withdraw, renew, auto-renew and claim are disabled. Early withdraw and opening new deposits still work.
           </div>
         )}
         {!isConnected ? (
