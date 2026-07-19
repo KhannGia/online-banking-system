@@ -7,12 +7,12 @@ import { formatUsdc, bpsToPercent, formatCountdown } from '../lib/format'
 import { TxButton } from './TxButton'
 import { RenewDialog } from './RenewDialog'
 
-export function DepositRow({ d, nowSecs, gracePeriod, systemPaused, onChanged }: {
-  d: DepositRaw; nowSecs: number; gracePeriod: number; systemPaused: boolean; onChanged: () => void
+export function DepositRow({ d, nowSecs, gracePeriod, corePaused, vaultPaused, onChanged }: {
+  d: DepositRaw; nowSecs: number; gracePeriod: number; corePaused: boolean; vaultPaused: boolean; onChanged: () => void
 }) {
   const { chainId } = useAccount()
   const core = chainId ? getAddress('SavingCore', chainId) : undefined
-  const v = deriveDepositView(d, nowSecs, gracePeriod, systemPaused)
+  const v = deriveDepositView(d, nowSecs, gracePeriod, corePaused, vaultPaused)
   const [renewing, setRenewing] = useState(false)
   const [confirmingEarly, setConfirmingEarly] = useState(false)
 

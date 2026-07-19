@@ -11,40 +11,65 @@ const maturity = 180 * 86400
 
 describe('deriveDepositView', () => {
   it('before maturity: only earlyWithdraw', () => {
-    const v = deriveDepositView(base, maturity - 10, GRACE, false)
+    const v = deriveDepositView(base, maturity - 10, GRACE, false, false)
     expect(v.actions).toMatchObject({ earlyWithdraw: true, withdrawAtMaturity: false, renew: false, autoRenew: false })
     expect(v.isMatured).toBe(false)
   })
   it('exactly at maturity: withdraw + renew, not early, not autoRenew', () => {
-    const v = deriveDepositView(base, maturity, GRACE, false)
+    const v = deriveDepositView(base, maturity, GRACE, false, false)
     expect(v.actions).toMatchObject({ withdrawAtMaturity: true, renew: true, earlyWithdraw: false, autoRenew: false })
     expect(v.isMatured).toBe(true)
   })
   it('exactly at grace end: autoRenew becomes available', () => {
-    expect(deriveDepositView(base, maturity + GRACE - 1, GRACE, false).actions.autoRenew).toBe(false)
-    expect(deriveDepositView(base, maturity + GRACE, GRACE, false).actions.autoRenew).toBe(true)
+    expect(deriveDepositView(base, maturity + GRACE - 1, GRACE, false, false).actions.autoRenew).toBe(false)
+    expect(deriveDepositView(base, maturity + GRACE, GRACE, false, false).actions.autoRenew).toBe(true)
   })
-  it('paused: all lifecycle actions off', () => {
-    const v = deriveDepositView(base, maturity + GRACE, GRACE, true)
+  it('both paused: all lifecycle actions off', () => {
+    const v = deriveDepositView(base, maturity + GRACE, GRACE, true, true)
     expect(v.actions).toMatchObject({ withdrawAtMaturity: false, earlyWithdraw: false, renew: false, autoRenew: false, claimInterest: false })
   })
-  it('paused: claimInterest is off even with pending interest', () => {
+  it('both paused: claimInterest is off even with pending interest', () => {
     const withPending: DepositRaw = { ...base, pendingInterest: 500n }
-    const v = deriveDepositView(withPending, maturity + GRACE, GRACE, true)
+    const v = deriveDepositView(withPending, maturity + GRACE, GRACE, true, true)
     expect(v.actions.claimInterest).toBe(false)
   })
   it('pendingInterest gates claim independent of status', () => {
     const withdrawn: DepositRaw = { ...base, status: DepositStatus.Withdrawn, pendingInterest: 500n }
-    const v = deriveDepositView(withdrawn, maturity + 1, GRACE, false)
+    const v = deriveDepositView(withdrawn, maturity + 1, GRACE, false, false)
     expect(v.actions.claimInterest).toBe(true)
     expect(v.actions.withdrawAtMaturity).toBe(false) // not Active
     expect(v.statusLabel).toBe('Withdrawn')
   })
   it('non-active deposit offers no lifecycle actions', () => {
     const renewed: DepositRaw = { ...base, status: DepositStatus.ManualRenewed }
-    const v = deriveDepositView(renewed, maturity + 1, GRACE, false)
+    const v = deriveDepositView(renewed, maturity + 1, GRACE, false, false)
     expect(v.actions).toMatchObject({ withdrawAtMaturity: false, renew: false, autoRenew: false, earlyWithdraw: false })
     expect(v.statusLabel).toBe('Manually renewed')
+  })
+
+  describe('independent pause switches', () => {
+    it('vault paused only, pre-maturity: earlyWithdraw still available (pays no interest)', () => {
+      const v = deriveDepositView(base, maturity - 10, GRACE, false, true)
+      expect(v.actions.earlyWithdraw).toBe(true)
+    })
+    it('vault paused only, past grace: withdrawAtMaturity/renew/autoRenew all off (all call vault.payInterest, which is whenNotPaused)', () => {
+      const v = deriveDepositView(base, maturity + GRACE, GRACE, false, true)
+      expect(v.actions).toMatchObject({ withdrawAtMaturity: false, renew: false, autoRenew: false })
+      // earlyWithdraw is unavailable here for an unrelated reason (already matured), not because of vaultPaused.
+      expect(v.actions.earlyWithdraw).toBe(false)
+    })
+    it('vault paused only: claimInterest off when interest is pending', () => {
+      const withPending: DepositRaw = { ...base, pendingInterest: 500n }
+      const v = deriveDepositView(withPending, maturity + GRACE, GRACE, false, true)
+      expect(v.actions.claimInterest).toBe(false)
+    })
+    it('core paused only: every action off, including earlyWithdraw', () => {
+      const withPending: DepositRaw = { ...base, pendingInterest: 500n }
+      const preMaturity = deriveDepositView(withPending, maturity - 10, GRACE, true, false)
+      expect(preMaturity.actions).toMatchObject({ earlyWithdraw: false, withdrawAtMaturity: false, renew: false, autoRenew: false, claimInterest: false })
+      const pastGrace = deriveDepositView(withPending, maturity + GRACE, GRACE, true, false)
+      expect(pastGrace.actions).toMatchObject({ earlyWithdraw: false, withdrawAtMaturity: false, renew: false, autoRenew: false, claimInterest: false })
+    })
   })
 })
 

@@ -49,7 +49,8 @@ export function deriveDepositView(
   d: DepositRaw,
   nowSecs: number,
   gracePeriodSecs: number,
-  systemPaused: boolean,
+  corePaused: boolean,
+  vaultPaused: boolean,
 ): DepositView {
   const maturity = Number(d.maturityAt)
   const graceEnd = maturity + gracePeriodSecs
@@ -57,7 +58,12 @@ export function deriveDepositView(
   const isMatured = nowSecs >= maturity
   const isPastGrace = nowSecs >= graceEnd
   const hasPendingInterest = d.pendingInterest > 0n
-  const live = isActive && !systemPaused
+  // earlyWithdraw pays no interest (no vault.payInterest call), so it only needs
+  // SavingCore to be unpaused. Every other lifecycle action pays interest via
+  // VaultManager.payInterest, which itself carries whenNotPaused — so those also
+  // need the vault to be unpaused, or the tx reverts.
+  const liveCore = isActive && !corePaused
+  const liveCoreAndVault = liveCore && !vaultPaused
 
   return {
     statusLabel: STATUS_LABEL[d.status] ?? 'Unknown',
@@ -68,11 +74,11 @@ export function deriveDepositView(
     secondsToGraceEnd: Math.max(0, graceEnd - nowSecs),
     hasPendingInterest,
     actions: {
-      withdrawAtMaturity: live && isMatured,
-      earlyWithdraw: live && !isMatured,
-      renew: live && isMatured,
-      autoRenew: live && isPastGrace,
-      claimInterest: hasPendingInterest && !systemPaused,
+      withdrawAtMaturity: liveCoreAndVault && isMatured,
+      earlyWithdraw: liveCore && !isMatured,
+      renew: liveCoreAndVault && isMatured,
+      autoRenew: liveCoreAndVault && isPastGrace,
+      claimInterest: hasPendingInterest && !corePaused && !vaultPaused,
     },
   }
 }

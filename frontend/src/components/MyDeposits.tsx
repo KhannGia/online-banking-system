@@ -6,7 +6,7 @@ import { DepositRow } from './DepositRow'
 export function MyDeposits({ onChanged }: { onChanged: () => void }) {
   const { isConnected } = useAccount()
   const { deposits, isLoading } = useDeposits()
-  const { gracePeriod, corePaused } = useSystemState()
+  const { gracePeriod, corePaused, vaultPaused } = useSystemState()
   // Use the chain's latest block timestamp (not the machine's wall clock) so action
   // gating tracks block.timestamp — the clock the contract itself evaluates guards
   // against. This also tracks evm_increaseTime jumps used in local-chain demos, which
@@ -31,7 +31,7 @@ export function MyDeposits({ onChanged }: { onChanged: () => void }) {
       <tbody>
         {deposits.map((d) => (
           <DepositRow key={d.depositId.toString()} d={d} nowSecs={now}
-            gracePeriod={Number(gracePeriod)} systemPaused={corePaused} onChanged={onChanged} />
+            gracePeriod={Number(gracePeriod)} corePaused={corePaused} vaultPaused={vaultPaused} onChanged={onChanged} />
         ))}
       </tbody>
     </table>
