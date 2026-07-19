@@ -38,7 +38,17 @@ export default function App() {
           <>
             {tab === 'deposit' && <PlansView onOpened={refreshAll} />}
             {tab === 'my' && <MyDeposits onChanged={refreshAll} />}
-            {tab === 'admin' && showAdmin && <AdminPanel onChanged={refreshAll} />}
+            {/*
+              Deliberately not gated on `showAdmin` here: showAdmin comes from a
+              network read that can momentarily report "unknown" (e.g. right after
+              a background refetch/observer remount). Gating the panel's presence
+              on that value unmounts AdminPanel whenever it blips, which resets all
+              of its in-progress form state (useState re-initializes on remount) —
+              the panel does its own (remount-proof) owner check internally instead.
+              Header still hides the Admin nav entry unless showAdmin is true, so a
+              non-owner has no ordinary way to land on this tab in the first place.
+            */}
+            {tab === 'admin' && <AdminPanel onChanged={refreshAll} />}
           </>
         )}
       </main>

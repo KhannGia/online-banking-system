@@ -21,13 +21,24 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
   const core = chainId ? getAddress('SavingCore', chainId) : undefined
   const vault = chainId ? getAddress('VaultManager', chainId) : undefined
   const usdc = chainId ? getAddress('MockUSDC', chainId) : undefined
-  const { vaultBalance, feeReceiver, keeperRewardBps, corePaused, vaultPaused } = useSystemState()
+  const { vaultBalance, feeReceiver, keeperRewardBps, corePaused, vaultPaused, owner } = useSystemState()
+
+  // Owner check lives here (not just in App/useIsOwner) so it can gate what this
+  // component *renders* without ever gating whether it's *mounted*. `owner` is
+  // undefined until the systemState multicall resolves — track that separately
+  // from "resolved and it's someone else" so the panel can tell the two apart.
+  const ownerChecked = owner !== undefined
+  const isOwner = !!address && ownerChecked && address.toLowerCase() === owner.toLowerCase()
 
   // Chain's latest block timestamp, not the machine's wall clock: the timelock's
   // "executable at" check is evaluated by the contract against block.timestamp, and
   // this also tracks evm_increaseTime jumps used in local-chain demos, which
   // Date.now() would never see. Same reasoning as MyDeposits.tsx.
-  const { data: block } = useBlock({ watch: true, query: { refetchInterval: 5_000 } })
+  //
+  // watch:true alone keeps this fresh (it opens a live block subscription under
+  // the hood); the refetchInterval a previous version added on top of it was a
+  // second, redundant polling path for the same data — removed.
+  const { data: block } = useBlock({ watch: true })
   const now = block ? Number(block.timestamp) : Math.floor(Date.now() / 1000)
 
   // createPlan form (pre-filled to personal-variant defaults)
@@ -87,6 +98,19 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
 
   const mintAmtVal = safeUsdc(mintAmt)
   const mintValid = isValidAddress(mintTo) && mintAmtVal !== null && mintAmtVal > 0n
+
+  // All hooks above run unconditionally on every render — this early return only
+  // changes what's rendered, never whether the component (and its form state) is
+  // mounted. A non-owner still never sees a usable panel: just this notice.
+  if (!isOwner) {
+    return (
+      <div className={box}>
+        <p className="text-sm text-slate-400">
+          {ownerChecked ? 'Not authorized — connect the contract owner account to manage admin settings.' : 'Checking admin access…'}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
