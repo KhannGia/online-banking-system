@@ -76,7 +76,7 @@ frontend/
       DepositRow.tsx
       RenewDialog.tsx
       AdminPanel.tsx
-      TxButton.tsx                # wraps simulate→write→wait, toasts, disabled states
+      TxButton.tsx                # wraps write→wait, toasts, disabled states (see §6.5 on simulation)
     lib/__tests__/
       deposit.test.ts
       format.test.ts
