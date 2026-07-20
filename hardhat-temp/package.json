@@ -1,7 +1,10 @@
 {
-  "name": "ac-hardhat-template",
-  "version": "0.1.0",
-  "author": "nexm",
+  "name": "savingcore-contracts",
+  "version": "1.0.0",
+  "description": "Term-deposit smart contracts (MockUSDC, VaultManager, SavingCore) for the Blockchain Programming final project",
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
+  },
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
