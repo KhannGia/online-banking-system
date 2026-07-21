@@ -11,7 +11,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "codegen": "wagmi generate && node scripts/sync-deploy-blocks.mjs"
+    "codegen": "npm_config_user_agent=yarn wagmi generate && node scripts/sync-deploy-blocks.mjs"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",

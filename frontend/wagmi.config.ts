@@ -8,7 +8,7 @@ const NETS: Record<number, string> = { 31337: 'localhost', 11155111: 'sepolia' }
 function addressesFor(name: string) {
   const map: Record<number, `0x${string}`> = {}
   for (const [chainId, net] of Object.entries(NETS)) {
-    const path = `../hardhat-temp/deployments/${net}/${name}.json`
+    const path = `../contract/deployments/${net}/${name}.json`
     if (existsSync(path)) map[Number(chainId)] = JSON.parse(readFileSync(path, 'utf8')).address
   }
   return map
@@ -18,7 +18,7 @@ export default defineConfig({
   out: 'src/generated.ts',
   plugins: [
     hardhat({
-      project: '../hardhat-temp',
+      project: '../contract',
       include: NAMES.map((n) => `${n}.json`),
       deployments: Object.fromEntries(NAMES.map((n) => [n, addressesFor(n)])),
     }),

@@ -19,12 +19,12 @@ The default plan created at deploy time uses this student's assigned variant:
 
 - Node.js and npm.
 - MetaMask (or another injected wallet) for manual testing.
-- The sibling `../hardhat-temp` project for running a local node / deploying.
+- The sibling `../contract` project for running a local node / deploying.
 
 ## Run locally against Hardhat
 
-1. In `../hardhat-temp/`: `npm install`, then `npx hardhat node` (keep it running in its own terminal).
-2. In `../hardhat-temp/`: `npx hardhat deploy --network localhost`.
+1. In `../contract/`: `npm install`, then `npx hardhat node` (keep it running in its own terminal).
+2. In `../contract/`: `npx hardhat deploy --network localhost`.
 3. In this folder (`frontend/`): `npm install`.
 4. In this folder: `npm run codegen` is required once after deploy to pick up the contract addresses and deployment block.
 5. In this folder: `npm run dev`.
@@ -50,14 +50,14 @@ Live addresses (chain id `11155111`):
 
 **The Sepolia interest vault starts empty.** Deposits can be opened right away, but interest payouts will fail until the vault is funded. Before demoing interest/claim flows on Sepolia, connect as the owner account and, in the **Admin** tab: mint yourself MockUSDC, approve the vault, then **Fund vault**.
 
-**Etherscan verification was not completed.** The `hardhat-verify` plugin installed in `hardhat-temp` targets Etherscan's V1 API, which Etherscan has since sunset in favor of V2 — running `hardhat verify` against it currently fails. The deployed bytecode is correct and functional; only the "Verified" badge on Etherscan is missing. This is a known limitation, not a functionality gap.
+**Etherscan verification was not completed.** The `hardhat-verify` plugin installed in `contract` targets Etherscan's V1 API, which Etherscan has since sunset in favor of V2 — running `hardhat verify` against it currently fails. The deployed bytecode is correct and functional; only the "Verified" badge on Etherscan is missing. This is a known limitation, not a functionality gap.
 
 ### Redeploying Sepolia yourself (optional)
 
 Only needed if you want to deploy your own instance rather than use the addresses above.
 
-1. Put a faucet-funded deployer key in `../hardhat-temp/.env` as `TESTNET_PRIVATE_KEY` (never commit it — `.env` is gitignored there).
-2. In `../hardhat-temp/`: `npx hardhat deploy --network sepolia`.
+1. Put a faucet-funded deployer key in `../contract/.env` as `TESTNET_PRIVATE_KEY` (never commit it — `.env` is gitignored there).
+2. In `../contract/`: `npx hardhat deploy --network sepolia`.
 3. In this folder: `npm run codegen` (picks up the new Sepolia addresses and the real deployment block automatically), then commit the regenerated `src/generated.ts` and `src/config/deployBlocks.json`.
 
 If you connect to a supported chain before the contracts are deployed on it, the app shows a "Contracts are not deployed on this network yet" banner rather than an empty screen.
@@ -86,7 +86,7 @@ Note: this local node's clock has already been advanced by roughly 200 days over
 - `npm run build` — typecheck (`tsc -b`) then production build
 - `npm run preview` — preview the production build locally
 - `npm test` — run the unit test suite (`vitest run`) covering `lib/format`, `lib/deposit`, `lib/errors`
-- `npm run codegen` — regenerate `src/generated.ts` (via `wagmi generate`) **and** `src/config/deployBlocks.json` (via `scripts/sync-deploy-blocks.mjs`) from the contract deployments under `../hardhat-temp/deployments/`. Run after any (re)deploy.
+- `npm run codegen` — regenerate `src/generated.ts` (via `wagmi generate`) **and** `src/config/deployBlocks.json` (via `scripts/sync-deploy-blocks.mjs`) from the contract deployments under `../contract/deployments/`. Run after any (re)deploy.
 
 ## Config
 

@@ -33,7 +33,7 @@ These exact values are used in the contracts, tests, deploy script, and demo.
 
 ```
 .
-├── hardhat-temp/          # Smart contracts package (Hardhat + TypeScript)
+├── contract/              # Smart contracts package (Hardhat + TypeScript)
 │   ├── contracts/         # MockUSDC.sol, VaultManager.sol, SavingCore.sol
 │   ├── test/              # 78 tests
 │   ├── deploy/            # hardhat-deploy script (wires contracts + default plan)
@@ -43,13 +43,18 @@ These exact values are used in the contracts, tests, deploy script, and demo.
 │   └── README.md          # frontend-specific setup, demo tips, feature tour
 ├── docs/
 │   ├── REQUIREMENTS.md    # ★ assignment requirement → code/test traceability
+│   ├── CONTRIBUTING.md    # dev environment setup, scripts, testing, PR checklist
+│   ├── RUNBOOK.md         # deploy procedures, common issues, rollback
 │   ├── specs/             # design specs (contracts, frontend)
 │   └── plans/             # task-by-task implementation plans
+├── .devcontainer/         # VS Code Dev Containers config
+├── docker-compose.yml     # dev container (frontend + contract, isolated from host)
+├── Dockerfile.dev
 └── Final_Assignment.docx.pdf
 ```
 
 **Where to look first as a grader:**
-- Design Answers to the 7 open questions → [`hardhat-temp/README.md`](hardhat-temp/README.md) §7
+- Design Answers to the 7 open questions → [`contract/README.md`](contract/README.md) §7
 - Requirement-by-requirement traceability → [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
 
 ## Requirements
@@ -69,7 +74,7 @@ If you use `nvm`: `nvm use` picks up `.nvmrc`.
 ## Setup — smart contracts
 
 ```bash
-cd hardhat-temp
+cd contract
 npm install
 
 npm test                    # 78 tests
@@ -81,15 +86,15 @@ Deploy to a local chain (two terminals):
 
 ```bash
 # terminal 1 — keep running
-cd hardhat-temp && npx hardhat node
+cd contract && npx hardhat node
 
 # terminal 2
-cd hardhat-temp && npx hardhat deploy --network localhost
+cd contract && npx hardhat deploy --network localhost
 ```
 
 This deploys all three contracts, wires `VaultManager.setSavingCore`, and creates the default
 180-day / 225-bps / 550-bps plan. Addresses and ABIs are written to
-`hardhat-temp/deployments/localhost/`.
+`contract/deployments/localhost/`.
 
 ## Setup — frontend
 
@@ -118,9 +123,36 @@ vault, and how to fast-forward the local chain to demo maturity/grace flows.
 - `VITE_WC_PROJECT_ID` — WalletConnect Cloud project id. MetaMask works without it.
 - `VITE_SEPOLIA_RPC` — overrides the default public Sepolia RPC.
 
-Secrets for deploying (`hardhat-temp/.env`, only needed to deploy to a public network):
+Secrets for deploying (`contract/.env`, only needed to deploy to a public network):
 `TESTNET_PRIVATE_KEY`, `ETHERSCAN_API`. This file is gitignored — never commit a real key,
 and use a throwaway testnet key only.
+
+## Setup — Docker dev container (optional, no local Node/npm needed)
+
+The whole repo can run in an isolated Node 26 container instead of installing anything on the
+host. Both `frontend/` and `contract/` are bind-mounted in; their `node_modules` live in
+separate named Docker volumes so host and container never conflict.
+
+```bash
+docker compose up -d           # start the container in the background
+docker compose exec dev bash   # open a shell inside it
+
+# inside the container:
+cd contract && yarn install    # use yarn here — npm's dependency resolution errors on this
+                                # project's transitive deps (see docs/RUNBOOK.md)
+cd frontend && npm install
+```
+
+Then run the same commands from the sections above (`npx hardhat node`, `npm run dev`, etc.)
+inside that shell — ports `5173` (Vite) and `8545` (Hardhat node) are published to the host.
+
+**VS Code users**: install the **Dev Containers** extension, then *Reopen in Container*
+(config in `.devcontainer/devcontainer.json`) so the editor's language server also runs inside
+the container and can resolve `node_modules` — otherwise the editor will show false type errors
+for a project it was never `npm install`-ed for on the host.
+
+See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for the full script reference and
+[`docs/RUNBOOK.md`](docs/RUNBOOK.md) for common issues.
 
 ## Architecture in one paragraph
 
@@ -129,7 +161,7 @@ Interest is always paid from the vault, never from another user's principal — 
 never mix. Each deposit snapshots its plan's APR, penalty, and tenor at open, so later admin
 changes can never alter an existing deposit. Authorization is by ERC-721 ownership, so the
 certificate itself is the claim. Full reasoning, the interest math with worked examples, and
-answers to all seven open questions are in [`hardhat-temp/README.md`](hardhat-temp/README.md).
+answers to all seven open questions are in [`contract/README.md`](contract/README.md).
 
 ## Known limitations
 

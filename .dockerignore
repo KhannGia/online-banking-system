@@ -1,10 +1,10 @@
 node_modules
 **/node_modules
 .git
-hardhat-temp/cache
-hardhat-temp/artifacts
-hardhat-temp/typechain
-hardhat-temp/typechain-types
-hardhat-temp/coverage
+contract/cache
+contract/artifacts
+contract/typechain
+contract/typechain-types
+contract/coverage
 frontend/dist
 *.log

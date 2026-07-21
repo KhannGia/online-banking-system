@@ -9,15 +9,15 @@ node_modules/
 **/node_modules/
 
 # ---- Hardhat build output (generated) ----
-hardhat-temp/cache/
-hardhat-temp/artifacts/
-hardhat-temp/typechain/
-hardhat-temp/typechain-types/
-hardhat-temp/coverage/
-hardhat-temp/coverage.json
-hardhat-temp/data/
-hardhat-temp/deployments/localhost/
-hardhat-temp/deployments/hardhat/
+contract/cache/
+contract/artifacts/
+contract/typechain/
+contract/typechain-types/
+contract/coverage/
+contract/coverage.json
+contract/data/
+contract/deployments/localhost/
+contract/deployments/hardhat/
 
 # ---- Windows Zone.Identifier metadata ----
 *Zone.Identifier

@@ -7,7 +7,7 @@ services:
     volumes:
       - .:/workspace
       - frontend_node_modules:/workspace/frontend/node_modules
-      - hardhat_node_modules:/workspace/hardhat-temp/node_modules
+      - contract_node_modules:/workspace/contract/node_modules
     ports:
       - "5173:5173" # Vite dev server
       - "8545:8545" # Hardhat local node
@@ -16,4 +16,4 @@ services:
 
 volumes:
   frontend_node_modules:
-  hardhat_node_modules:
+  contract_node_modules:

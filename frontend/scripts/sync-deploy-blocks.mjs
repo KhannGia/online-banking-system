@@ -6,7 +6,7 @@ const NETS = { 31337: 'localhost', 11155111: 'sepolia' }
 const out = {}
 
 for (const [chainId, net] of Object.entries(NETS)) {
-  const path = `../hardhat-temp/deployments/${net}/SavingCore.json`
+  const path = `../contract/deployments/${net}/SavingCore.json`
   if (!existsSync(path)) continue
   const dep = JSON.parse(readFileSync(path, 'utf8'))
   const block = dep.receipt?.blockNumber
