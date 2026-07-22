@@ -357,7 +357,7 @@ and asserts the reentrant `openDeposit` reverts.
 
 ## 9. How to Run
 
-Prerequisites: Node.js 18+ and npm. From the `hardhat-temp/` directory (this
+Prerequisites: Node.js 18+ and npm. From the `contract/` directory (this
 package's `package.json` lives here — the monorepo root has none):
 
 ```shell
