@@ -4,6 +4,7 @@ import { savingCoreAbi, vaultManagerAbi, mockUsdcAbi } from '../generated'
 import { getAddress } from '../config/contracts'
 import { useSystemState } from '../hooks/useSystemState'
 import { usePlans } from '../hooks/usePlans'
+import { useUsdcBalance } from '../hooks/useUsdcBalance'
 import { formatUsdc, formatCountdown, bpsToPercent, safeUsdc, safeBigInt } from '../lib/format'
 import { TxButton } from './TxButton'
 import { card, input, label as labelClass, btnDanger, btnSecondary } from '../lib/ui'
@@ -87,9 +88,15 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
       ? ([tenorVal, aprVal, minVal, maxVal, penVal] as const)
       : undefined
 
+  const ownerUsdcBalance = useUsdcBalance()
   const fundVal = safeUsdc(fund)
   const fundInputValid = fundVal !== null && fundVal > 0n
   const needsVaultApproval = fundInputValid && (vaultAllowance ?? 0n) < (fundVal as bigint)
+  // Insufficient balance still lets safeTransferFrom's revert through, but MetaMask's
+  // gas estimation for a call that's guaranteed to revert can itself get rejected by the
+  // RPC ("gas limit too high") before the real reason ever reaches the user — catch it
+  // here instead of letting that confusing message be the first sign of a bad input.
+  const insufficientFundBalance = fundInputValid && (ownerUsdcBalance ?? 0n) < (fundVal as bigint)
 
   const schedVal = safeUsdc(sched)
   const schedValid = schedVal !== null && schedVal > 0n
@@ -176,6 +183,7 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
 
       <div className={card}>
         <h3 className={sectionTitle}>Vault <span className="font-mono text-amber-400">{formatUsdc(vaultBalance)} USDC</span></h3>
+        <p className="text-xs text-ink-500 font-mono">Your balance: {ownerUsdcBalance !== undefined ? formatUsdc(ownerUsdcBalance) : '—'} USDC</p>
         <div className="flex gap-2 items-center">
           <input className={input} value={fund} onChange={(e) => setFund(e.target.value)} placeholder="Fund amount (USDC)" />
           {needsVaultApproval
@@ -183,8 +191,11 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
                 args={vault && fundVal !== null ? [vault, fundVal] : undefined} disabled={!fundInputValid}
                 onConfirmed={() => refetchVaultAllowance()} />
             : <TxButton key="fund" label="Fund" address={vault} abi={vaultManagerAbi} functionName="fundVault"
-                args={fundVal !== null ? [fundVal] : undefined} disabled={!fundInputValid} onConfirmed={onChanged} />}
+                args={fundVal !== null ? [fundVal] : undefined} disabled={!fundInputValid || insufficientFundBalance} onConfirmed={onChanged} />}
         </div>
+        {insufficientFundBalance && (
+          <p className="text-xs text-rose-400">Your balance is below the fund amount — mint more MockUSDC below first.</p>
+        )}
         <h4 className="text-sm text-ink-300 pt-2 font-medium">Timelocked withdrawal (2-day delay)</h4>
         <p className="text-xs text-ink-400">
           {hasScheduledWithdrawal

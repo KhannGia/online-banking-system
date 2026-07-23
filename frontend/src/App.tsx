@@ -6,11 +6,12 @@ import { ChainGuard } from './components/ChainGuard'
 import { PlansView } from './components/PlansView'
 import { MyDeposits } from './components/MyDeposits'
 import { AdminPanel } from './components/AdminPanel'
+import { AboutPage } from './components/AboutPage'
 import { useIsOwner } from './hooks/useIsOwner'
 import { useSystemState } from './hooks/useSystemState'
 
 export default function App() {
-  const [tab, setTab] = useState<'deposit' | 'my' | 'admin'>('deposit')
+  const [tab, setTab] = useState<'deposit' | 'my' | 'admin' | 'about'>('deposit')
   const showAdmin = useIsOwner()
   const queryClient = useQueryClient()
   const refreshAll = () => queryClient.invalidateQueries()
@@ -20,7 +21,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <Header tab={tab} setTab={setTab} showAdmin={showAdmin} />
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-5">
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-5">
         <ChainGuard />
         {corePaused && (
           <div className="bg-rose-950/60 border border-rose-800 text-rose-200 px-4 py-2.5 rounded-lg text-sm">
@@ -32,7 +33,9 @@ export default function App() {
             Interest payouts are paused — withdraw, renew, auto-renew and claim are disabled. Early withdraw and opening new deposits still work.
           </div>
         )}
-        {!isConnected ? (
+        {tab === 'about' ? (
+          <AboutPage onEnterApp={() => setTab('deposit')} />
+        ) : !isConnected ? (
           <div className="text-center py-24 space-y-2">
             <p className="font-display text-2xl text-ink-200">Your vault awaits.</p>
             <p className="text-ink-500 text-sm">Connect a wallet to view plans and deposits.</p>

@@ -38,6 +38,12 @@ describe('decodeRevert - full revert table coverage', () => {
     ['User denied transaction signature', 'You rejected the request.'],
     ['execution reverted: insufficient allowance', 'Token allowance too low — approve first.'],
     ['execution reverted: transfer amount exceeds allowance', 'Token allowance too low — approve first.'],
+    ['execution reverted: transfer amount exceeds balance', 'Token balance too low for this amount.'],
+    ['ERC20InsufficientBalance(0xabc, 0, 100)', 'Token balance too low for this amount.'],
+    [
+      'RPC 0xaa36a7 Infura eth_sendRawTransaction: gas limit too high',
+      "Transaction rejected before execution — this usually means it would have failed (e.g. insufficient balance/allowance). Check your inputs and try again.",
+    ],
   ])('maps %j to the exact message %j', (input, expected) => {
     expect(decodeRevert(new Error(input))).toBe(expected)
   })

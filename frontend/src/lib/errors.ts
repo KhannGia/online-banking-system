@@ -16,6 +16,11 @@ const KNOWN: { pattern: RegExp; message: string }[] = [
   { pattern: /ReentrancyGuardReentrantCall/i, message: 'Reentrant call blocked.' },
   { pattern: /user rejected|denied/i, message: 'You rejected the request.' },
   { pattern: /insufficient allowance|transfer amount exceeds allowance/i, message: 'Token allowance too low — approve first.' },
+  { pattern: /transfer amount exceeds balance|insufficient balance|ERC20InsufficientBalance/i, message: 'Token balance too low for this amount.' },
+  // Not a Solidity revert reason: the RPC rejected the tx before it ever ran (often
+  // because gas estimation for a call that's guaranteed to revert — e.g. insufficient
+  // balance/allowance — falls back to an oversized gas limit the node then refuses).
+  { pattern: /gas limit too high|intrinsic gas too high/i, message: "Transaction rejected before execution — this usually means it would have failed (e.g. insufficient balance/allowance). Check your inputs and try again." },
 ]
 
 export function decodeRevert(error: unknown): string {

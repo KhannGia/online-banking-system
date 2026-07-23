@@ -38,3 +38,7 @@ export function safeBigInt(s: string): bigint | null {
   if (!/^\d+$/.test(t)) return null
   try { return BigInt(t) } catch { return null }
 }
+
+export function shortHash(hash: string): string {
+  return `${hash.slice(0, 6)}…${hash.slice(-4)}`
+}

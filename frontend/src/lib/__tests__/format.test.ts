@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatUsdc, parseUsdc, bpsToPercent, formatCountdown, safeUsdc, safeBigInt } from '../format'
+import { formatUsdc, parseUsdc, bpsToPercent, formatCountdown, safeUsdc, safeBigInt, shortHash } from '../format'
 
 describe('format', () => {
   it('formats 6-decimal USDC', () => {
@@ -16,6 +16,9 @@ describe('format', () => {
     expect(bpsToPercent(225)).toBe('2.25%')
     expect(bpsToPercent(550n)).toBe('5.5%')
     expect(bpsToPercent(10000)).toBe('100%')
+  })
+  it('shortens a hash to a leading/trailing snippet', () => {
+    expect(shortHash('0x63cdc3901dff3243fcb81d03cbc89390a57a04f5ed35b774bd7e3f3ad597ef19')).toBe('0x63cd…ef19')
   })
   it('formats a countdown', () => {
     expect(formatCountdown(0)).toBe('0m')

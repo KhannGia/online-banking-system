@@ -6,6 +6,7 @@ import { formatUsdc, parseUsdc, bpsToPercent } from '../lib/format'
 import { quoteInterest } from '../lib/deposit'
 import { TxButton } from './TxButton'
 import type { Plan } from '../hooks/usePlans'
+import { useUsdcBalance } from '../hooks/useUsdcBalance'
 import { modalOverlay, modalPanel, input, btnSecondary } from '../lib/ui'
 
 export function OpenDepositDialog({ plan, onClose, onDone }: { plan: Plan; onClose: () => void; onDone: () => void }) {
@@ -17,7 +18,7 @@ export function OpenDepositDialog({ plan, onClose, onDone }: { plan: Plan; onClo
   let amount = 0n
   try { amount = parseUsdc(amountStr || '0') } catch { amount = 0n }
 
-  const { data: balance } = useReadContract({ address: usdc, abi: mockUsdcAbi, functionName: 'balanceOf', args: address ? [address] : undefined, query: { enabled: !!usdc && !!address } })
+  const balance = useUsdcBalance()
   const { data: allowance, refetch: refetchAllowance } = useReadContract({ address: usdc, abi: mockUsdcAbi, functionName: 'allowance', args: address && core ? [address, core] : undefined, query: { enabled: !!usdc && !!address && !!core } })
 
   const belowMin = plan.minDeposit > 0n && amount < plan.minDeposit
@@ -30,7 +31,7 @@ export function OpenDepositDialog({ plan, onClose, onDone }: { plan: Plan; onClo
       <div className={modalPanel} onClick={(e) => e.stopPropagation()}>
         <h3 className="font-display text-lg text-ink-50">Open deposit <span className="text-ink-500 font-sans text-sm">— plan #{plan.planId.toString()}</span></h3>
         <div className="text-xs text-ink-400 font-mono">
-          Balance: {balance !== undefined ? formatUsdc(balance as bigint) : '—'} USDC
+          Balance: {balance !== undefined ? formatUsdc(balance) : '—'} USDC
           {plan.minDeposit > 0n && <> · min {formatUsdc(plan.minDeposit)}</>}
           {plan.maxDeposit > 0n && <> · max {formatUsdc(plan.maxDeposit)}</>}
         </div>

@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import type { Abi } from 'viem'
 import { toast } from 'sonner'
 import { decodeRevert } from '../lib/errors'
+import { addTxHistoryEntry } from '../lib/txHistory'
 import { btnPrimary } from '../lib/ui'
 
 export function TxButton({ label, address, abi, functionName, args, value, disabled, onConfirmed, className }: {
@@ -16,11 +17,17 @@ export function TxButton({ label, address, abi, functionName, args, value, disab
   onConfirmed?: () => void
   className?: string
 }) {
+  const { chainId } = useAccount()
   const { writeContract, data: hash, isPending, reset } = useWriteContract()
   const { isLoading: mining, isSuccess } = useWaitForTransactionReceipt({ hash })
 
   useEffect(() => {
-    if (isSuccess) { toast.success(`${label} confirmed`); onConfirmed?.(); reset() }
+    if (isSuccess) {
+      toast.success(`${label} confirmed`)
+      if (hash && chainId) addTxHistoryEntry({ label, hash, chainId })
+      onConfirmed?.()
+      reset()
+    }
   }, [isSuccess]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
