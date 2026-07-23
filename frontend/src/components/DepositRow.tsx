@@ -6,6 +6,12 @@ import { deriveDepositView, type DepositRaw } from '../lib/deposit'
 import { formatUsdc, bpsToPercent, formatCountdown } from '../lib/format'
 import { TxButton } from './TxButton'
 import { RenewDialog } from './RenewDialog'
+import { modalOverlay, modalPanel, btnWarn, btnSecondary } from '../lib/ui'
+
+const STATUS_STYLE: Record<string, string> = {
+  Active: 'bg-emerald-900/50 text-emerald-300 ring-1 ring-emerald-700/50',
+  Withdrawn: 'bg-ink-800 text-ink-500',
+}
 
 export function DepositRow({ d, nowSecs, gracePeriod, corePaused, vaultPaused, onChanged }: {
   d: DepositRaw; nowSecs: number; gracePeriod: number; corePaused: boolean; vaultPaused: boolean; onChanged: () => void
@@ -23,49 +29,52 @@ export function DepositRow({ d, nowSecs, gracePeriod, corePaused, vaultPaused, o
     : '—'
 
   return (
-    <tr className="border-t border-slate-800">
-      <td className="py-2 px-3">#{d.depositId.toString()}</td>
-      <td className="px-3">{formatUsdc(d.principal)} USDC</td>
-      <td className="px-3">{bpsToPercent(d.aprBpsAtOpen)}</td>
-      <td className="px-3">{v.statusLabel}</td>
-      <td className="px-3 text-slate-400">{timing}</td>
-      <td className="px-3">{v.hasPendingInterest ? `${formatUsdc(d.pendingInterest)} USDC` : '—'}</td>
+    <tr className="bg-ink-900 [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg">
+      <td className="py-2.5 px-3 font-mono text-ink-400">#{d.depositId.toString()}</td>
+      <td className="px-3 font-mono text-ink-100">{formatUsdc(d.principal)} USDC</td>
+      <td className="px-3 font-mono text-amber-400">{bpsToPercent(d.aprBpsAtOpen)}</td>
+      <td className="px-3">
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[v.statusLabel] ?? 'bg-ink-800 text-ink-400'}`}>
+          {v.statusLabel}
+        </span>
+      </td>
+      <td className="px-3 text-ink-500">{timing}</td>
+      <td className="px-3 font-mono">{v.hasPendingInterest ? `${formatUsdc(d.pendingInterest)} USDC` : '—'}</td>
       <td className="px-3">
         <div className="flex gap-2 flex-wrap justify-end">
           {v.actions.withdrawAtMaturity && (
             <TxButton key="withdraw" label="Withdraw" address={core} abi={savingCoreAbi} functionName="withdrawAtMaturity" args={[d.depositId]} onConfirmed={onChanged} />
           )}
           {v.actions.earlyWithdraw && (
-            <button key="early" onClick={() => setConfirmingEarly(true)}
-              className="px-3 py-1.5 rounded-md bg-amber-700 hover:bg-amber-600 text-sm">
+            <button key="early" onClick={() => setConfirmingEarly(true)} className={btnWarn}>
               Early withdraw
             </button>
           )}
           {v.actions.renew && (
-            <button key="renew" onClick={() => setRenewing(true)} className="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm">Renew</button>
+            <button key="renew" onClick={() => setRenewing(true)} className={btnSecondary}>Renew</button>
           )}
           {v.actions.autoRenew && (
             <TxButton key="auto" label="Auto-renew" address={core} abi={savingCoreAbi} functionName="autoRenewDeposit" args={[d.depositId]} onConfirmed={onChanged} />
           )}
           {v.actions.claimInterest && (
-            <TxButton key="claim" label="Claim interest" address={core} abi={savingCoreAbi} functionName="claimInterest" args={[d.depositId]} onConfirmed={onChanged} className="px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-600 text-sm" />
+            <TxButton key="claim" label="Claim interest" address={core} abi={savingCoreAbi} functionName="claimInterest" args={[d.depositId]} onConfirmed={onChanged} />
           )}
         </div>
         {renewing && <RenewDialog depositId={d.depositId} onClose={() => setRenewing(false)} onDone={onChanged} />}
         {confirmingEarly && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center" onClick={() => setConfirmingEarly(false)}>
-            <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-96 space-y-4" onClick={(e) => e.stopPropagation()}>
-              <h3 className="font-semibold">Early withdraw deposit #{d.depositId.toString()}</h3>
-              <p className="text-xs text-slate-400">
+          <div className={modalOverlay} onClick={() => setConfirmingEarly(false)}>
+            <div className={modalPanel} onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-display text-lg text-ink-50">Early withdraw deposit #{d.depositId.toString()}</h3>
+              <p className="text-xs text-ink-400">
                 Withdrawing before maturity forfeits all accrued interest and charges a{' '}
-                <span className="text-amber-400 font-medium">{bpsToPercent(d.penaltyBpsAtOpen)}</span>{' '}
+                <span className="text-amber-400 font-medium font-mono">{bpsToPercent(d.penaltyBpsAtOpen)}</span>{' '}
                 early-withdrawal penalty on your principal — the rate locked in when this deposit was opened. This cannot be undone.
               </p>
               <div className="flex gap-2 justify-end">
                 <TxButton key="early-confirm" label="Confirm early withdraw" address={core} abi={savingCoreAbi} functionName="earlyWithdraw"
                   args={[d.depositId]} onConfirmed={() => { onChanged(); setConfirmingEarly(false) }}
-                  className="px-3 py-1.5 rounded-md bg-amber-700 hover:bg-amber-600 text-sm" />
-                <button onClick={() => setConfirmingEarly(false)} className="px-3 py-1.5 rounded-md bg-slate-700 text-sm">Cancel</button>
+                  className={btnWarn} />
+                <button onClick={() => setConfirmingEarly(false)} className={btnSecondary}>Cancel</button>
               </div>
             </div>
           </div>

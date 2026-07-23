@@ -3,11 +3,12 @@ import { useAccount, useReadContract, useReadContracts, useBlock } from 'wagmi'
 import { savingCoreAbi, vaultManagerAbi, mockUsdcAbi } from '../generated'
 import { getAddress } from '../config/contracts'
 import { useSystemState } from '../hooks/useSystemState'
-import { formatUsdc, formatCountdown, safeUsdc, safeBigInt } from '../lib/format'
+import { usePlans } from '../hooks/usePlans'
+import { formatUsdc, formatCountdown, bpsToPercent, safeUsdc, safeBigInt } from '../lib/format'
 import { TxButton } from './TxButton'
+import { card, input, label as labelClass, btnDanger, btnSecondary } from '../lib/ui'
 
-const box = 'border border-slate-800 rounded-xl p-4 space-y-3'
-const input = 'w-full bg-slate-800 rounded-md px-3 py-2 outline-none text-sm'
+const sectionTitle = 'font-display text-base text-ink-50'
 
 // UI should never offer a button whose tx would revert on a malformed address —
 // gate on this instead of a bare non-empty check.
@@ -22,6 +23,7 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
   const vault = chainId ? getAddress('VaultManager', chainId) : undefined
   const usdc = chainId ? getAddress('MockUSDC', chainId) : undefined
   const { vaultBalance, feeReceiver, keeperRewardBps, corePaused, vaultPaused, owner } = useSystemState()
+  const { plans, isLoading: plansLoading } = usePlans()
 
   // Owner check lives here (not just in App/useIsOwner) so it can gate what this
   // component *renders* without ever gating whether it's *mounted*. `owner` is
@@ -104,8 +106,8 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
   // mounted. A non-owner still never sees a usable panel: just this notice.
   if (!isOwner) {
     return (
-      <div className={box}>
-        <p className="text-sm text-slate-400">
+      <div className={card}>
+        <p className="text-sm text-ink-400">
           {ownerChecked ? 'Not authorized — connect the contract owner account to manage admin settings.' : 'Checking admin access…'}
         </p>
       </div>
@@ -114,21 +116,66 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className={box}>
-        <h3 className="font-semibold">Create plan</h3>
+      <div className={card}>
+        <h3 className={sectionTitle}>Create plan</h3>
         <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs text-slate-400">Tenor (days)<input className={input} value={tenor} onChange={(e) => setTenor(e.target.value)} /></label>
-          <label className="text-xs text-slate-400">APR (bps)<input className={input} value={apr} onChange={(e) => setApr(e.target.value)} /></label>
-          <label className="text-xs text-slate-400">Min (USDC)<input className={input} value={minD} onChange={(e) => setMinD(e.target.value)} /></label>
-          <label className="text-xs text-slate-400">Max (USDC)<input className={input} value={maxD} onChange={(e) => setMaxD(e.target.value)} /></label>
-          <label className="text-xs text-slate-400">Penalty (bps)<input className={input} value={pen} onChange={(e) => setPen(e.target.value)} /></label>
+          <label className={labelClass}>Tenor (days)<input className={`${input} mt-1`} value={tenor} onChange={(e) => setTenor(e.target.value)} /></label>
+          <label className={labelClass}>APR (bps)<input className={`${input} mt-1`} value={apr} onChange={(e) => setApr(e.target.value)} /></label>
+          <label className={labelClass}>Min (USDC)<input className={`${input} mt-1`} value={minD} onChange={(e) => setMinD(e.target.value)} /></label>
+          <label className={labelClass}>Max (USDC)<input className={`${input} mt-1`} value={maxD} onChange={(e) => setMaxD(e.target.value)} /></label>
+          <label className={labelClass}>Penalty (bps)<input className={`${input} mt-1`} value={pen} onChange={(e) => setPen(e.target.value)} /></label>
         </div>
         <TxButton key="create-plan" label="Create plan" address={core} abi={savingCoreAbi} functionName="createPlan"
           args={planArgs} disabled={!planArgs} onConfirmed={onChanged} />
       </div>
 
-      <div className={box}>
-        <h3 className="font-semibold">Vault — balance {formatUsdc(vaultBalance)} USDC</h3>
+      <div className={card}>
+        <h3 className={sectionTitle}>Manage plans</h3>
+        {plansLoading ? (
+          <p className="text-sm text-ink-400">Loading plans…</p>
+        ) : plans.length === 0 ? (
+          <p className="text-sm text-ink-400">No plans created yet.</p>
+        ) : (
+          <table className="w-full text-sm border-separate border-spacing-y-1">
+            <thead className="text-ink-500 text-left text-xs uppercase tracking-wide">
+              <tr>
+                <th className="py-1 font-medium">ID</th><th className="font-medium">Tenor</th><th className="font-medium">APR</th>
+                <th className="font-medium">Min</th><th className="font-medium">Max</th><th className="font-medium">Penalty</th>
+                <th className="font-medium">Status</th><th className="text-right font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plans.map((p) => (
+                <tr key={p.planId.toString()} className="bg-ink-850 [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg">
+                  <td className="py-1.5 font-mono text-ink-400">{p.planId.toString()}</td>
+                  <td className="font-mono">{p.tenorDays.toString()}d</td>
+                  <td className="font-mono text-amber-400">{bpsToPercent(p.aprBps)}</td>
+                  <td className="font-mono">{p.minDeposit > 0n ? formatUsdc(p.minDeposit) : '—'}</td>
+                  <td className="font-mono">{p.maxDeposit > 0n ? formatUsdc(p.maxDeposit) : '—'}</td>
+                  <td className="font-mono">{bpsToPercent(p.earlyWithdrawPenaltyBps)}</td>
+                  <td>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.enabled ? 'bg-emerald-900/50 text-emerald-300 ring-1 ring-emerald-700/50' : 'bg-ink-800 text-ink-500'}`}>
+                      {p.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </td>
+                  <td className="text-right">
+                    {p.enabled ? (
+                      <TxButton key={`disable-${p.planId}`} label="Disable" address={core} abi={savingCoreAbi}
+                        functionName="disablePlan" args={[p.planId]} onConfirmed={onChanged} className={btnDanger} />
+                    ) : (
+                      <TxButton key={`enable-${p.planId}`} label="Enable" address={core} abi={savingCoreAbi}
+                        functionName="enablePlan" args={[p.planId]} onConfirmed={onChanged} />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className={card}>
+        <h3 className={sectionTitle}>Vault <span className="font-mono text-amber-400">{formatUsdc(vaultBalance)} USDC</span></h3>
         <div className="flex gap-2 items-center">
           <input className={input} value={fund} onChange={(e) => setFund(e.target.value)} placeholder="Fund amount (USDC)" />
           {needsVaultApproval
@@ -138,10 +185,10 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
             : <TxButton key="fund" label="Fund" address={vault} abi={vaultManagerAbi} functionName="fundVault"
                 args={fundVal !== null ? [fundVal] : undefined} disabled={!fundInputValid} onConfirmed={onChanged} />}
         </div>
-        <h4 className="text-sm text-slate-400 pt-2">Timelocked withdrawal (2-day delay)</h4>
-        <p className="text-xs text-slate-400">
+        <h4 className="text-sm text-ink-300 pt-2 font-medium">Timelocked withdrawal (2-day delay)</h4>
+        <p className="text-xs text-ink-400">
           {hasScheduledWithdrawal
-            ? <>Pending: {formatUsdc(pendingWithdraw)} USDC · {isExecutable ? 'executable now' : `executable in ${formatCountdown(secondsToExecutable)}`}</>
+            ? <>Pending: <span className="font-mono">{formatUsdc(pendingWithdraw)} USDC</span> · {isExecutable ? 'executable now' : `executable in ${formatCountdown(secondsToExecutable)}`}</>
             : 'No withdrawal scheduled.'}
         </p>
         <div className="flex gap-2 items-center">
@@ -153,13 +200,13 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
           <TxButton key="execute" label="Execute" address={vault} abi={vaultManagerAbi} functionName="executeWithdrawVault"
             disabled={!isExecutable} onConfirmed={onChanged} />
           <TxButton key="cancel" label="Cancel" address={vault} abi={vaultManagerAbi} functionName="cancelScheduledWithdrawal"
-            disabled={!hasScheduledWithdrawal} onConfirmed={onChanged} className="px-3 py-1.5 rounded-md bg-slate-700 text-sm" />
+            disabled={!hasScheduledWithdrawal} onConfirmed={onChanged} className={btnSecondary} />
         </div>
       </div>
 
-      <div className={box}>
-        <h3 className="font-semibold">Config</h3>
-        <p className="text-xs text-slate-400">Fee receiver: {feeReceiver ?? '—'} · keeper reward: {keeperRewardBps.toString()} bps</p>
+      <div className={card}>
+        <h3 className={sectionTitle}>Config</h3>
+        <p className="text-xs text-ink-400 font-mono">Fee receiver: {feeReceiver ?? '—'} · keeper reward: {keeperRewardBps.toString()} bps</p>
         <div className="flex gap-2"><input className={input} value={fee} onChange={(e) => setFee(e.target.value)} placeholder="New fee receiver (0x…)" />
           <TxButton key="set-fee" label="Set fee" address={vault} abi={vaultManagerAbi} functionName="setFeeReceiver"
             args={feeValid ? [fee as `0x${string}`] : undefined} disabled={!feeValid} onConfirmed={onChanged} /></div>
@@ -168,17 +215,15 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
             args={keeperVal !== null ? [keeperVal] : undefined} disabled={!keeperValid} onConfirmed={onChanged} /></div>
       </div>
 
-      <div className={box}>
-        <h3 className="font-semibold">Emergency & demo</h3>
+      <div className={card}>
+        <h3 className={sectionTitle}>Emergency & demo</h3>
         <div className="flex gap-2">
           <TxButton key="pause-core" label={corePaused ? 'Unpause SavingCore' : 'Pause SavingCore'} address={core} abi={savingCoreAbi}
-            functionName={corePaused ? 'unpause' : 'pause'} onConfirmed={onChanged}
-            className="px-3 py-1.5 rounded-md bg-rose-700 hover:bg-rose-600 text-sm" />
+            functionName={corePaused ? 'unpause' : 'pause'} onConfirmed={onChanged} className={btnDanger} />
           <TxButton key="pause-vault" label={vaultPaused ? 'Unpause VaultManager' : 'Pause VaultManager'} address={vault} abi={vaultManagerAbi}
-            functionName={vaultPaused ? 'unpause' : 'pause'} onConfirmed={onChanged}
-            className="px-3 py-1.5 rounded-md bg-rose-700 hover:bg-rose-600 text-sm" />
+            functionName={vaultPaused ? 'unpause' : 'pause'} onConfirmed={onChanged} className={btnDanger} />
         </div>
-        <h4 className="text-sm text-slate-400 pt-2">Mint MockUSDC (demo)</h4>
+        <h4 className="text-sm text-ink-300 pt-2 font-medium">Mint MockUSDC (demo)</h4>
         <div className="grid grid-cols-2 gap-2">
           <input className={input} value={mintTo} onChange={(e) => setMintTo(e.target.value)} placeholder="To (0x…)" />
           <input className={input} value={mintAmt} onChange={(e) => setMintAmt(e.target.value)} placeholder="Amount (USDC)" />

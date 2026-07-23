@@ -6,6 +6,7 @@ import { formatUsdc, parseUsdc, bpsToPercent } from '../lib/format'
 import { quoteInterest } from '../lib/deposit'
 import { TxButton } from './TxButton'
 import type { Plan } from '../hooks/usePlans'
+import { modalOverlay, modalPanel, input, btnSecondary } from '../lib/ui'
 
 export function OpenDepositDialog({ plan, onClose, onDone }: { plan: Plan; onClose: () => void; onDone: () => void }) {
   const { address, chainId } = useAccount()
@@ -25,25 +26,26 @@ export function OpenDepositDialog({ plan, onClose, onDone }: { plan: Plan; onClo
   const amountValid = amount > 0n && !belowMin && !aboveMax
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-96 space-y-4" onClick={(e) => e.stopPropagation()}>
-        <h3 className="font-semibold">Open deposit — plan #{plan.planId.toString()}</h3>
-        <div className="text-xs text-slate-400">
+    <div className={modalOverlay} onClick={onClose}>
+      <div className={modalPanel} onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-display text-lg text-ink-50">Open deposit <span className="text-ink-500 font-sans text-sm">— plan #{plan.planId.toString()}</span></h3>
+        <div className="text-xs text-ink-400 font-mono">
           Balance: {balance !== undefined ? formatUsdc(balance as bigint) : '—'} USDC
           {plan.minDeposit > 0n && <> · min {formatUsdc(plan.minDeposit)}</>}
           {plan.maxDeposit > 0n && <> · max {formatUsdc(plan.maxDeposit)}</>}
         </div>
         <input value={amountStr} onChange={(e) => setAmountStr(e.target.value)} inputMode="decimal"
-          className="w-full bg-slate-800 rounded-md px-3 py-2 outline-none" placeholder="Amount (USDC)" />
+          className={input} placeholder="Amount (USDC)" />
         {amount > 0n && (
-          <p className="text-xs text-slate-400">
-            Est. interest at maturity: {formatUsdc(quoteInterest(amount, plan.aprBps, plan.tenorDays))} USDC
+          <p className="text-xs text-ink-400">
+            Est. interest at maturity:{' '}
+            <span className="font-mono text-amber-400">{formatUsdc(quoteInterest(amount, plan.aprBps, plan.tenorDays))} USDC</span>
             {' '}(over {plan.tenorDays.toString()} days at {bpsToPercent(plan.aprBps)} APR)
           </p>
         )}
-        {belowMin && <p className="text-xs text-red-400">Below plan minimum.</p>}
-        {aboveMax && <p className="text-xs text-red-400">Above plan maximum.</p>}
-        <div className="flex gap-2 justify-end">
+        {belowMin && <p className="text-xs text-rose-400">Below plan minimum.</p>}
+        {aboveMax && <p className="text-xs text-rose-400">Above plan maximum.</p>}
+        <div className="flex gap-2 justify-end pt-1">
           {needsApproval ? (
             <TxButton key="approve" label="Approve" address={usdc} abi={mockUsdcAbi} functionName="approve"
               args={core ? [core, amount] : undefined} disabled={!amountValid || !core}
@@ -53,7 +55,7 @@ export function OpenDepositDialog({ plan, onClose, onDone }: { plan: Plan; onClo
               args={[plan.planId, amount]} disabled={!amountValid}
               onConfirmed={() => { onDone(); onClose() }} />
           )}
-          <button onClick={onClose} className="px-3 py-1.5 rounded-md bg-slate-700 text-sm">Cancel</button>
+          <button onClick={onClose} className={btnSecondary}>Cancel</button>
         </div>
       </div>
     </div>

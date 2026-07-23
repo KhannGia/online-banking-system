@@ -3,6 +3,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import type { Abi } from 'viem'
 import { toast } from 'sonner'
 import { decodeRevert } from '../lib/errors'
+import { btnPrimary } from '../lib/ui'
 
 export function TxButton({ label, address, abi, functionName, args, value, disabled, onConfirmed, className }: {
   label: string
@@ -33,7 +34,7 @@ export function TxButton({ label, address, abi, functionName, args, value, disab
           { onError: (e) => toast.error(decodeRevert(e)) },
         )
       }
-      className={className ?? 'px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm'}
+      className={className ?? btnPrimary}
     >
       {isPending || mining ? 'Confirming…' : label}
     </button>

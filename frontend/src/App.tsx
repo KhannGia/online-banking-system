@@ -18,22 +18,25 @@ export default function App() {
   const { corePaused, vaultPaused } = useSystemState()
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen">
       <Header tab={tab} setTab={setTab} showAdmin={showAdmin} />
-      <main className="max-w-5xl mx-auto px-6 py-6 space-y-4">
+      <main className="max-w-5xl mx-auto px-6 py-8 space-y-5">
         <ChainGuard />
         {corePaused && (
-          <div className="bg-rose-600/20 border border-rose-500 text-rose-200 px-4 py-2 rounded-md text-sm">
+          <div className="bg-rose-950/60 border border-rose-800 text-rose-200 px-4 py-2.5 rounded-lg text-sm">
             System is paused — deposits and withdrawals are disabled.
           </div>
         )}
         {!corePaused && vaultPaused && (
-          <div className="bg-rose-600/20 border border-rose-500 text-rose-200 px-4 py-2 rounded-md text-sm">
+          <div className="bg-rose-950/60 border border-rose-800 text-rose-200 px-4 py-2.5 rounded-lg text-sm">
             Interest payouts are paused — withdraw, renew, auto-renew and claim are disabled. Early withdraw and opening new deposits still work.
           </div>
         )}
         {!isConnected ? (
-          <div className="text-slate-400">Connect a wallet to view plans and deposits.</div>
+          <div className="text-center py-24 space-y-2">
+            <p className="font-display text-2xl text-ink-200">Your vault awaits.</p>
+            <p className="text-ink-500 text-sm">Connect a wallet to view plans and deposits.</p>
+          </div>
         ) : (
           <>
             {tab === 'deposit' && <PlansView onOpened={refreshAll} />}

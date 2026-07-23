@@ -20,7 +20,10 @@ const mockUseWaitForTransactionReceipt = vi.fn()
 vi.mock('wagmi', () => ({
   useAccount: () => mockUseAccount(),
   useReadContract: () => mockUseReadContract(),
-  useReadContracts: () => mockUseReadContracts(),
+  // Forward the call's `contracts` array so the mock can tell AdminPanel's own
+  // timelock query (always 2 fixed contracts) apart from usePlans()'s query
+  // (0 contracts while planCount is mocked to 0) — both hit this same mock.
+  useReadContracts: (args: { contracts?: unknown[] }) => mockUseReadContracts(args),
   useBlock: () => mockUseBlock(),
   useWriteContract: () => mockUseWriteContract(),
   useWaitForTransactionReceipt: () => mockUseWaitForTransactionReceipt(),
@@ -60,7 +63,12 @@ import App from '../../App'
 function setStableMocks() {
   mockUseAccount.mockReturnValue({ address: OWNER, chainId: 11155111, isConnected: true })
   mockUseReadContract.mockReturnValue({ data: 0n, refetch: vi.fn() })
-  mockUseReadContracts.mockReturnValue({ data: undefined })
+  // usePlans()'s query has 0 contracts while planCount is mocked to 0n; AdminPanel's
+  // own timelock query always has 2. Keep each query's mocked data shaped for its
+  // own call instead of one blanket value for both.
+  mockUseReadContracts.mockImplementation((args?: { contracts?: unknown[] }) =>
+    args?.contracts && args.contracts.length > 0 ? { data: undefined } : { data: [] },
+  )
   mockUseBlock.mockReturnValue({ data: { timestamp: 1_800_000_000n } })
   mockUseWriteContract.mockReturnValue({ writeContract: vi.fn(), data: undefined, isPending: false, reset: vi.fn() })
   mockUseWaitForTransactionReceipt.mockReturnValue({ isLoading: false, isSuccess: false })
@@ -125,7 +133,9 @@ describe('AdminPanel — Create plan number inputs', () => {
     // New block arrives (watch:true) and the read-contracts poll resolves —
     // AdminPanel re-renders with fresh data, but is never unmounted.
     mockUseBlock.mockReturnValue({ data: { timestamp: 1_800_000_005n } })
-    mockUseReadContracts.mockReturnValue({ data: [{ result: 0n }, { result: 0n }] })
+    mockUseReadContracts.mockImplementation((args?: { contracts?: unknown[] }) =>
+      args?.contracts && args.contracts.length > 0 ? { data: [{ result: 0n }, { result: 0n }] } : { data: [] },
+    )
     rerender(<AdminPanel onChanged={() => {}} />)
 
     expect(getTenorInput().value).toBe('9')

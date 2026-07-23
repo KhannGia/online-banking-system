@@ -15,7 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme()}>
+        <RainbowKitProvider theme={darkTheme({ accentColor: '#059669', accentColorForeground: '#ecfdf5', borderRadius: 'medium' })}>
           <App />
           <Toaster theme="dark" position="top-right" richColors />
         </RainbowKitProvider>

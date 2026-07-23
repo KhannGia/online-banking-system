@@ -14,7 +14,7 @@ export function useMissingDeployment(): boolean {
   return SUPPORTED_CHAIN_IDS.includes(chainId as 31337 | 11155111) && !isDeployedOn(chainId)
 }
 
-const banner = 'border px-4 py-2 rounded-md text-sm'
+const banner = 'border px-4 py-2.5 rounded-lg text-sm'
 
 export function ChainGuard() {
   const unsupported = useUnsupportedChain()
@@ -22,16 +22,16 @@ export function ChainGuard() {
 
   if (unsupported) {
     return (
-      <div className={`${banner} bg-amber-600/20 border-amber-500 text-amber-200`}>
+      <div className={`${banner} bg-amber-950/50 border-amber-700 text-amber-200`}>
         Unsupported network. Switch to Hardhat (31337) or Sepolia (11155111) to continue.
       </div>
     )
   }
   if (missing) {
     return (
-      <div className={`${banner} bg-amber-600/20 border-amber-500 text-amber-200`}>
+      <div className={`${banner} bg-amber-950/50 border-amber-700 text-amber-200`}>
         Contracts are not deployed on this network yet. Deploy them (see the README) and re-run
-        <code className="mx-1 px-1 bg-slate-800 rounded">npm run codegen</code>, or switch networks.
+        <code className="mx-1 px-1 bg-ink-800 rounded font-mono text-xs">npm run codegen</code>, or switch networks.
       </div>
     )
   }

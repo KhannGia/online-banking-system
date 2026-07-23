@@ -5,6 +5,7 @@ import { getAddress } from '../config/contracts'
 import { usePlans } from '../hooks/usePlans'
 import { bpsToPercent } from '../lib/format'
 import { TxButton } from './TxButton'
+import { modalOverlay, modalPanel, input, btnSecondary } from '../lib/ui'
 
 export function RenewDialog({ depositId, onClose, onDone }: { depositId: bigint; onClose: () => void; onDone: () => void }) {
   const { chainId } = useAccount()
@@ -22,14 +23,14 @@ export function RenewDialog({ depositId, onClose, onDone }: { depositId: bigint;
   }, [enabledPlans, planId])
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-96 space-y-4" onClick={(e) => e.stopPropagation()}>
-        <h3 className="font-semibold">Renew deposit #{depositId.toString()}</h3>
-        <p className="text-xs text-slate-400">Interest is compounded into the new principal; the new deposit uses the chosen plan's current rate.</p>
+    <div className={modalOverlay} onClick={onClose}>
+      <div className={modalPanel} onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-display text-lg text-ink-50">Renew deposit #{depositId.toString()}</h3>
+        <p className="text-xs text-ink-400">Interest is compounded into the new principal; the new deposit uses the chosen plan's current rate.</p>
         {enabledPlans.length === 0 ? (
-          <p className="text-sm text-slate-400">No enabled plans available to renew into.</p>
+          <p className="text-sm text-ink-500">No enabled plans available to renew into.</p>
         ) : (
-          <select className="w-full bg-slate-800 rounded-md px-3 py-2"
+          <select className={input}
             value={planId?.toString() ?? ''} onChange={(e) => setPlanId(BigInt(e.target.value))}>
             {enabledPlans.map((p) => (
               <option key={p.planId.toString()} value={p.planId.toString()}>
@@ -42,7 +43,7 @@ export function RenewDialog({ depositId, onClose, onDone }: { depositId: bigint;
           <TxButton label="Renew" address={core} abi={savingCoreAbi} functionName="renewDeposit"
             args={planId !== null ? [depositId, planId] : undefined} disabled={planId === null}
             onConfirmed={() => { onDone(); onClose() }} />
-          <button onClick={onClose} className="px-3 py-1.5 rounded-md bg-slate-700 text-sm">Cancel</button>
+          <button onClick={onClose} className={btnSecondary}>Cancel</button>
         </div>
       </div>
     </div>
