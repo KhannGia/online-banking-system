@@ -40,7 +40,7 @@ resolve `node_modules` for IntelliSense/type-checking.
 | `npm run dev` | Start the Vite dev server (`http://localhost:5173`) |
 | `npm run build` | Type-check (`tsc -b`) then production build to `dist/` |
 | `npm run preview` | Serve the built `dist/` locally |
-| `npm test` | Run the Vitest unit test suite (57 tests) |
+| `npm test` | Run the Vitest unit test suite (61 tests) |
 | `npm run codegen` | Regenerate `src/generated.ts` (ABIs + addresses) from `contract/` artifacts/deployments, then sync the deployment block number |
 
 ## Available scripts — `contract/`
@@ -54,6 +54,8 @@ resolve `node_modules` for IntelliSense/type-checking.
 | `npm run clean` | Remove Hardhat's `cache/` and `artifacts/` |
 | `npm run run:sepolia` | Run a script against the `sepolia` network |
 | `npm run run:ethereum` | Run a script against the `ethereum` (mainnet) network |
+| `npm run keeper:sepolia` | Run the permissionless keeper bot (`scripts/keeper-bot.ts`) against `sepolia` — set `ONCE=1` for a single scan |
+| `npm run keeper:localhost` | Same, against a local Hardhat node |
 | `npx hardhat deploy --network <net>` | Deploy via `hardhat-deploy` (not a package.json script, used directly) |
 | `npx hardhat coverage` | Solidity coverage report |
 <!-- /AUTO-GENERATED -->
@@ -79,7 +81,7 @@ Both `.env` files are gitignored — never commit real keys.
 ```bash
 cd contract && npm test        # 78 contract tests
 cd contract && npx hardhat coverage   # coverage report, >90% required per contract
-cd frontend && npm test        # 57 frontend unit tests (Vitest)
+cd frontend && npm test        # 61 frontend unit tests (Vitest)
 ```
 
 Contract coverage requirement (per the assignment spec): >90% statements on `MockUSDC`,

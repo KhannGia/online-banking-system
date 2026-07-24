@@ -38,6 +38,26 @@ frontend points at it — there is no in-place downgrade. Old deployment JSON fi
 `contract/deployments/<network>/` are the historical record of prior addresses if you need to
 point back at one.
 
+## Running the permissionless keeper bot
+
+`SavingCore.autoRenewDeposit` is callable by anyone after `maturityAt + GRACE_PERIOD`, but
+nothing triggers it on its own — matured deposits just sit `Active` until someone calls it.
+`contract/scripts/keeper-bot.ts` is a reference bot: it scans every deposit (`0..nextDepositId-1`
+via the public `deposits` mapping) and calls `autoRenewDeposit` on each eligible one, earning
+`keeperRewardBps` of the interest per call (that reward is `0` unless the owner has set it via
+Admin tab → Set keeper — otherwise the caller only pays gas).
+
+```bash
+cd contract
+ONCE=1 npm run keeper:sepolia   # single scan, then exit
+npm run keeper:sepolia          # loop forever, polling every POLL_INTERVAL_MS (default 60_000)
+```
+
+Swap `keeper:sepolia` for `keeper:localhost` to run against a local node. It reads the signer
+from `TESTNET_PRIVATE_KEY` in `contract/.env` — same account the deploy scripts use — but that
+account does not need to own any of the deposits it renews; that's the point of the bonus-G
+permissionless design.
+
 ## Health checks
 
 There's no dashboard; confirm liveness directly against the RPC:

@@ -34,7 +34,7 @@ worked example (1e9 @ 250 bps / 90 days → 6,164,383) and this variant (1e9 @ 2
 | Function | Implementation | Tests |
 |---|---|---|
 | `createPlan(...)` | `SC:78` | `SavingCore.test.ts:47` `describe("plan management")` |
-| `updatePlan(planId, newAprBps)` | `SC:96` — affects new deposits only | `SavingCore.test.ts:47`; immutability proven in `describe("openDeposit")` |
+| `updatePlan(planId, newAprBps)` | `SC:96` — affects new deposits only; wired into the Admin tab's per-plan "New APR" control (`frontend/src/components/AdminPanel.tsx`) | `SavingCore.test.ts:47`; immutability proven in `describe("openDeposit")` |
 | `enablePlan` / `disablePlan` | `SC:103` / `SC:109` | `SavingCore.test.ts:47` |
 | `fundVault(amount)` | `VM:57` | `VaultManager.test.ts:8` |
 | `withdrawVault(amount)` | **Timelocked** (bonus F): `VM:84` schedule → `VM:93` execute → `VM:106` cancel, `TIMELOCK_DELAY = 2 days` (`VM:20`) | `VaultManager.test.ts:93` `describe("timelock withdraw")` |
@@ -86,7 +86,7 @@ and on VaultManager `Funded`, `FeeReceiverUpdated`, `InterestPaid`, `SavingCoreS
 | 7.1 `VaultManager.sol` — funding, fee receiver, pause | `VM` |
 | 7.1 `SavingCore.sol` — plans, deposits, withdraw, renew (manual + auto), ERC-721 | `SC` |
 | 7.2 Test suite, coverage > 90% | **78 tests passing.** Coverage: MockUSDC 100/100/100/100, VaultManager 100/100/100/100, SavingCore 100 stmts / 95.45 branches / 100 funcs / 100 lines |
-| 7.3 React frontend (MetaMask, view plans, open deposit, view deposits, withdraw/renew) | `frontend/` — all four required capabilities plus the bonus actions and an owner-only Admin tab. 57 frontend tests |
+| 7.3 React frontend (MetaMask, view plans, open deposit, view deposits, withdraw/renew) | `frontend/` — all four required capabilities plus the bonus actions and an owner-only Admin tab. 61 frontend tests |
 | 7.4 "Design Answers" section in README | [`contract/README.md`](../contract/README.md) §7 |
 
 ### §7.2 minimum test cases
@@ -110,7 +110,7 @@ and on VaultManager `Funded`, `FeeReceiverUpdated`, `InterestPaid`, `SavingCoreS
 |---|---|---|
 | 1 | Transferable certificate — who can withdraw | `SC:164` `_requireOwner`: `require(ownerOf(depositId) == msg.sender, "not owner")` |
 | 2 | Empty vault | Bonus C1 — `VM:64` `payInterest` never reverts; shortfall recorded as `pendingInterest`, claimable via `SC:219` `claimInterest` |
-| 3 | Dead bot | Bonus G — `SC:268` `autoRenewDeposit` is permissionless and pays a keeper reward |
+| 3 | Dead bot | Bonus G — `SC:268` `autoRenewDeposit` is permissionless and pays a keeper reward. Reference bot: `contract/scripts/keeper-bot.ts` (`npm run keeper:sepolia`) |
 | 4 | Rounding dust | `Math.mulDiv` floors; the remainder is never created as an obligation, so it stays in the vault and can never cause a revert. Test: `SavingCore.test.ts:581` |
 | 5 | Boundary times | `SC:176` `>=` maturity (withdraw), `SC:201` `<` maturity (early), `SC:242` `>=` maturity (renew, no upper bound), `SC:276` `>=` maturity+grace (auto-renew). Exact-second tests: `SavingCore.test.ts:427` |
 | 6 | Disabled plan with active deposits | `SC:245` blocks manual renew **into** a disabled plan; auto-renew deliberately never reads `enabled`; withdraw/claim unaffected |
@@ -124,7 +124,7 @@ and on VaultManager `Funded`, `FeeReceiverUpdated`, `InterestPaid`, `SavingCoreS
 |---|---|---|---|
 | **C1** | Principal is always safe | `VM:64` `payInterest` pays `min(amount, balance)` and never reverts; principal is always returned first; shortfall → `pendingInterest`; NFT not burned; `SC:219` `claimInterest` collects later, repeatably | `SavingCore.test.ts:254` (withdraw), `:380` (renew), `:511` (auto-renew) |
 | **F** | Timelocked vault withdrawal *(own idea)* | `VM:84`/`:93`/`:106` schedule → wait `TIMELOCK_DELAY` (2 days) → execute, with cancel. `pause()` deliberately **not** timelocked | `VaultManager.test.ts:93` |
-| **G** | Permissionless keeper incentive *(own idea)* | `SC:268` callable by anyone; reward = `mulDiv(interest, keeperRewardBps, 10000)` paid from the vault **on top of** the user's interest; user's interest has priority (paid first, structurally) | `SavingCore.test.ts:414`, incl. a partial-funding case proving priority |
+| **G** | Permissionless keeper incentive *(own idea)* | `SC:268` callable by anyone; reward = `mulDiv(interest, keeperRewardBps, 10000)` paid from the vault **on top of** the user's interest; user's interest has priority (paid first, structurally); reference bot at `contract/scripts/keeper-bot.ts` | `SavingCore.test.ts:414`, incl. a partial-funding case proving priority |
 
 Bonus rules satisfied: base flows still pass, each challenge has its own tests, and each is
 documented with problem → solution → trade-off in [`contract/README.md`](../contract/README.md) §5.

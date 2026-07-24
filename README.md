@@ -11,7 +11,7 @@ by a permissionless keeper after a grace period.
 | | |
 |---|---|
 | **Contracts** | `MockUSDC` (6-decimal test ERC-20), `VaultManager` (interest pool), `SavingCore` (deposits + ERC-721 certificates) |
-| **Tests** | 78 contract tests, 57 frontend tests — all passing |
+| **Tests** | 78 contract tests, 61 frontend tests — all passing |
 | **Coverage** | MockUSDC 100%, VaultManager 100%, SavingCore 100% statements / 95.45% branches (requirement: >90%) |
 | **Bonus challenges** | C1 (principal always safe), F (timelocked vault withdrawal), G (permissionless keeper) — all implemented and tested |
 | **Networks** | Local Hardhat (`31337`) and Sepolia (`11155111`, already deployed) |
@@ -96,6 +96,22 @@ This deploys all three contracts, wires `VaultManager.setSavingCore`, and create
 180-day / 225-bps / 550-bps plan. Addresses and ABIs are written to
 `contract/deployments/localhost/`.
 
+### Permissionless keeper bot (bonus G reference implementation)
+
+`autoRenewDeposit` is callable by anyone, but nothing calls it automatically on its own —
+`contract/scripts/keeper-bot.ts` is a reference bot that scans every deposit and renews the
+ones past `maturityAt + GRACE_PERIOD`, earning `keeperRewardBps` of the interest per call:
+
+```bash
+cd contract
+ONCE=1 npm run keeper:sepolia      # single scan, then exit
+npm run keeper:sepolia             # loop forever, polling every 60s (POLL_INTERVAL_MS)
+```
+
+Swap `keeper:sepolia` for `keeper:localhost` against a local node. Uses the same
+`TESTNET_PRIVATE_KEY` from `contract/.env` as the deploy scripts — the account running it does
+not need to own any of the deposits it renews.
+
 ## Setup — frontend
 
 ```bash
@@ -111,7 +127,7 @@ npm run dev                 # http://localhost:5173
 cd frontend && npm run codegen
 ```
 
-`npm test` runs the 57 frontend unit tests.
+`npm test` runs the 61 frontend unit tests.
 
 Sepolia works out of the box — the deployed addresses ship in the repo, so you can simply
 switch your wallet to Sepolia without deploying anything. See

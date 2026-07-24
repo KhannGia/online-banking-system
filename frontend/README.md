@@ -85,7 +85,7 @@ Note: this local node's clock has already been advanced by roughly 200 days over
 - `npm run dev` — start the Vite dev server
 - `npm run build` — typecheck (`tsc -b`) then production build
 - `npm run preview` — preview the production build locally
-- `npm test` — run the unit test suite (`vitest run`) covering `lib/format`, `lib/deposit`, `lib/errors`
+- `npm test` — run the unit test suite (`vitest run`, 61 tests) covering `lib/format`, `lib/deposit`, `lib/errors`, and `AdminPanel`
 - `npm run codegen` — regenerate `src/generated.ts` (via `wagmi generate`) **and** `src/config/deployBlocks.json` (via `scripts/sync-deploy-blocks.mjs`) from the contract deployments under `../contract/deployments/`. Run after any (re)deploy.
 
 ## Config
@@ -97,7 +97,9 @@ Copy `.env.example` to `.env`. Both variables are optional:
 
 ## Feature tour
 
-- **Deposit** tab (`PlansView` + `OpenDepositDialog`) — lists the plans created on-chain (tenor, APR, penalty, min/max), shows a live interest preview computed client-side (`quoteInterest`, unit-tested against the contract's own worked examples), and opens a deposit through the standard two-step ERC-20 approve → deposit flow.
-- **My Deposits** tab (`MyDeposits` + `DepositRow`) — lists the connected wallet's deposits with live status (active / matured / past-grace / withdrawn) and exposes all five deposit actions where applicable: **Withdraw at maturity**, **Early withdraw** (with a confirmation dialog explaining the forfeited interest and penalty), **Renew** (opens a new deposit into a chosen plan), **Auto-renew** (permissionless — anyone can trigger it and earn the configured keeper reward), and **Claim interest**.
-- **Admin** tab (`AdminPanel`, owner-only — hidden from the nav unless the connected account is the contracts' owner) — create plans, fund/schedule/execute/cancel a timelocked vault withdrawal, set the fee receiver and keeper reward, pause/unpause SavingCore and VaultManager independently, and mint MockUSDC for demo purposes.
+- **Header** — shows the connected wallet's live MockUSDC balance, an **Activity** dropdown listing transactions submitted this session (session-only, cleared on reload — no backend), and a logo link to the **About** page.
+- **About** page (`AboutPage` + `FlowDiagrams`) — hand-built SVG user-flow and system-flow diagrams, role-based use cases (Depositor / Permissionless keeper / Admin), and the key design decisions, all sourced from `docs/REQUIREMENTS.md`/root `README.md`.
+- **Deposit** tab (`PlansView` + `OpenDepositDialog`) — lists the plans created on-chain (tenor, APR, penalty, min/max), shows a live interest preview computed client-side (`quoteInterest`, unit-tested against the contract's own worked examples — this has to be client-side since the deposit doesn't exist on-chain yet to preview against), and opens a deposit through the standard two-step ERC-20 approve → deposit flow.
+- **My Deposits** tab (`MyDeposits` + `DepositRow`) — lists the connected wallet's deposits with live status (active / matured / past-grace / withdrawn), an **Est. interest** column read directly from the contract (`previewInterest(depositId)`, the single source of truth once a deposit exists), and exposes all five deposit actions where applicable: **Withdraw at maturity**, **Early withdraw** (with a confirmation dialog explaining the forfeited interest and penalty), **Renew** (opens a new deposit into a chosen plan), **Auto-renew** (permissionless — anyone can trigger it and earn the configured keeper reward; see `contract/scripts/keeper-bot.ts` for a reference bot), and **Claim interest**.
+- **Admin** tab (`AdminPanel`, owner-only — hidden from the nav unless the connected account is the contracts' owner) — create plans; per-plan **enable/disable** and **update APR** (`updatePlan`, affects only future deposits — open deposits keep their snapshotted rate); fund/schedule/execute/cancel a timelocked vault withdrawal; set the fee receiver and keeper reward; pause/unpause SavingCore and VaultManager independently; and mint MockUSDC for demo purposes.
 - A **ChainGuard** banner warns when the connected wallet is on an unsupported network, or on a supported network where the contracts aren't deployed. A separate banner appears app-wide when the system is paused, and a connect-wallet prompt replaces the main content when no wallet is connected.

@@ -185,6 +185,10 @@ with **problem → solution → trade-off**.
 - **Trade-off:** A small slice of vault yield goes to keepers. The user is fully
   protected — they keep their original APR and full interest; the reward is extra.
 - **Tests:** `SavingCore` → "autoRenewDeposit (keeper, bonus G)".
+- **Reference bot:** `scripts/keeper-bot.ts` (`npm run keeper:sepolia` / `keeper:localhost`) —
+  scans every deposit via the public `deposits`/`nextDepositId` getters and calls
+  `autoRenewDeposit` on whichever are past `maturityAt + GRACE_PERIOD`. Demonstrates the design
+  actually works end-to-end from an account that owns none of the deposits it renews.
 
 ### 5.3 F — Timelock on vault withdrawal (original idea)
 
