@@ -18,6 +18,13 @@ function isValidAddress(s: string): boolean {
   return EVM_ADDRESS_RE.test(s)
 }
 
+// Matches SavingCore's own "bad apr" require (aprBps > 0 && <= MAX_APR_BPS) so the
+// Update button disables before the tx would revert, same pattern as the other forms here.
+function parseNewAprBps(raw: string): bigint | null {
+  const v = safeBigInt(raw)
+  return v !== null && v > 0n && v <= 10_000n ? v : null
+}
+
 export function AdminPanel({ onChanged }: { onChanged: () => void }) {
   const { address, chainId } = useAccount()
   const core = chainId ? getAddress('SavingCore', chainId) : undefined
@@ -57,6 +64,8 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
   const [keeper, setKeeper] = useState('50')
   const [mintTo, setMintTo] = useState(address ?? '')
   const [mintAmt, setMintAmt] = useState('10000')
+  // updatePlan: one pending "new APR" input per plan row, keyed by planId
+  const [aprEdits, setAprEdits] = useState<Record<string, string>>({})
 
   const { data: vaultAllowance, refetch: refetchVaultAllowance } = useReadContract({
     address: usdc, abi: mockUsdcAbi, functionName: 'allowance',
@@ -148,7 +157,7 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
               <tr>
                 <th className="py-1 font-medium">ID</th><th className="font-medium">Tenor</th><th className="font-medium">APR</th>
                 <th className="font-medium">Min</th><th className="font-medium">Max</th><th className="font-medium">Penalty</th>
-                <th className="font-medium">Status</th><th className="text-right font-medium">Action</th>
+                <th className="font-medium">Status</th><th className="font-medium">New APR</th><th className="text-right font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -164,6 +173,17 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.enabled ? 'bg-emerald-900/50 text-emerald-300 ring-1 ring-emerald-700/50' : 'bg-ink-800 text-ink-500'}`}>
                       {p.enabled ? 'Enabled' : 'Disabled'}
                     </span>
+                  </td>
+                  <td>
+                    <div className="flex gap-1 items-center">
+                      <input className={`${input} w-16`} value={aprEdits[p.planId.toString()] ?? ''}
+                        onChange={(e) => setAprEdits((s) => ({ ...s, [p.planId.toString()]: e.target.value }))} placeholder="bps" />
+                      <TxButton key={`update-apr-${p.planId}`} label="Update" address={core} abi={savingCoreAbi} functionName="updatePlan"
+                        args={parseNewAprBps(aprEdits[p.planId.toString()] ?? '') !== null ? [p.planId, parseNewAprBps(aprEdits[p.planId.toString()] ?? '')] : undefined}
+                        disabled={parseNewAprBps(aprEdits[p.planId.toString()] ?? '') === null}
+                        onConfirmed={() => { onChanged(); setAprEdits((s) => ({ ...s, [p.planId.toString()]: '' })) }}
+                        className={btnSecondary} />
+                    </div>
                   </td>
                   <td className="text-right">
                     {p.enabled ? (

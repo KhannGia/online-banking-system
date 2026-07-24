@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAccount } from 'wagmi'
+import { useAccount, useReadContract } from 'wagmi'
 import { savingCoreAbi } from '../generated'
 import { getAddress } from '../config/contracts'
 import { deriveDepositView, type DepositRaw } from '../lib/deposit'
@@ -22,6 +22,15 @@ export function DepositRow({ d, nowSecs, gracePeriod, corePaused, vaultPaused, o
   const [renewing, setRenewing] = useState(false)
   const [confirmingEarly, setConfirmingEarly] = useState(false)
 
+  // Read the interest for THIS deposit straight from the contract (SavingCore.previewInterest)
+  // instead of recomputing the formula client-side — it's the single source of truth once a
+  // deposit exists on-chain. (Before a deposit is opened there's no depositId to read yet, so
+  // OpenDepositDialog's pre-open estimate still uses the client-side quoteInterest formula.)
+  const { data: previewedInterest } = useReadContract({
+    address: core, abi: savingCoreAbi, functionName: 'previewInterest', args: [d.depositId],
+    query: { enabled: v.isActive },
+  })
+
   const timing = v.isActive
     ? v.isMatured
       ? (v.isPastGrace ? 'past grace' : `grace ends in ${formatCountdown(v.secondsToGraceEnd)}`)
@@ -39,6 +48,7 @@ export function DepositRow({ d, nowSecs, gracePeriod, corePaused, vaultPaused, o
         </span>
       </td>
       <td className="px-3 text-ink-500">{timing}</td>
+      <td className="px-3 font-mono">{v.isActive && previewedInterest !== undefined ? `${formatUsdc(previewedInterest)} USDC` : '—'}</td>
       <td className="px-3 font-mono">{v.hasPendingInterest ? `${formatUsdc(d.pendingInterest)} USDC` : '—'}</td>
       <td className="px-3">
         <div className="flex gap-2 flex-wrap justify-end">

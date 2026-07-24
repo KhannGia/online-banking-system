@@ -13,7 +13,9 @@
     "size": "hardhat size-contracts",
     "clean": "hardhat clean",
     "run:sepolia": "hardhat run --network sepolia",
-    "run:ethereum": "hardhat run --network ethereum"
+    "run:ethereum": "hardhat run --network ethereum",
+    "keeper:sepolia": "hardhat run scripts/keeper-bot.ts --network sepolia",
+    "keeper:localhost": "hardhat run scripts/keeper-bot.ts --network localhost"
   },
   "license": "ISC",
   "devDependencies": {

@@ -60,7 +60,11 @@ const STATUS_LABEL: Record<number, string> = {
   [DepositStatus.AutoRenewed]: 'Auto-renewed',
 }
 
-// Client-side interest quote (same simple-interest formula as SavingCore._computeInterest).
+// Client-side interest quote (same simple-interest formula as SavingCore._computeInterest),
+// used only for the pre-open estimate in OpenDepositDialog: SavingCore.previewInterest(depositId)
+// reads `deposits[depositId]` from storage, so it can't answer for a deposit that doesn't exist
+// on-chain yet. Once a deposit is open, DepositRow reads previewInterest directly instead of
+// calling this — that's the single source of truth for any deposit that already exists.
 // BigInt is arbitrary-precision so plain (a*b*c)/d equals the contract's Math.mulDiv here.
 export function quoteInterest(principal: bigint, aprBps: bigint, tenorDays: bigint): bigint {
   const tenorSeconds = tenorDays * 86400n

@@ -40,7 +40,7 @@ export function MyDeposits({ onChanged }: { onChanged: () => void }) {
       <thead className="text-ink-500 text-left text-xs uppercase tracking-wide">
         <tr>
           <th className="py-2 px-3 font-medium">ID</th><th className="px-3 font-medium">Principal</th><th className="px-3 font-medium">APR</th>
-          <th className="px-3 font-medium">Status</th><th className="px-3 font-medium">Timing</th><th className="px-3 font-medium">Pending</th><th className="px-3 text-right font-medium">Actions</th>
+          <th className="px-3 font-medium">Status</th><th className="px-3 font-medium">Timing</th><th className="px-3 font-medium">Est. interest</th><th className="px-3 font-medium">Pending</th><th className="px-3 text-right font-medium">Actions</th>
         </tr>
       </thead>
       <tbody>
