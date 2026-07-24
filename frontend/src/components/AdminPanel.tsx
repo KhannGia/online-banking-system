@@ -132,9 +132,9 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className={card}>
+      <div className={`${card} lg:col-span-2`}>
         <h3 className={sectionTitle}>Create plan</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label className={labelClass}>Tenor (days)<input className={`${input} mt-1`} value={tenor} onChange={(e) => setTenor(e.target.value)} /></label>
           <label className={labelClass}>APR (bps)<input className={`${input} mt-1`} value={apr} onChange={(e) => setApr(e.target.value)} /></label>
           <label className={labelClass}>Min (USDC)<input className={`${input} mt-1`} value={minD} onChange={(e) => setMinD(e.target.value)} /></label>
@@ -145,59 +145,73 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
           args={planArgs} disabled={!planArgs} onConfirmed={onChanged} />
       </div>
 
-      <div className={card}>
+      <div className={`${card} lg:col-span-2`}>
         <h3 className={sectionTitle}>Manage plans</h3>
         {plansLoading ? (
           <p className="text-sm text-ink-400">Loading plans…</p>
         ) : plans.length === 0 ? (
           <p className="text-sm text-ink-400">No plans created yet.</p>
         ) : (
-          <table className="w-full text-sm border-separate border-spacing-y-1">
-            <thead className="text-ink-500 text-left text-xs uppercase tracking-wide">
-              <tr>
-                <th className="py-1 font-medium">ID</th><th className="font-medium">Tenor</th><th className="font-medium">APR</th>
-                <th className="font-medium">Min</th><th className="font-medium">Max</th><th className="font-medium">Penalty</th>
-                <th className="font-medium">Status</th><th className="font-medium">New APR</th><th className="text-right font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {plans.map((p) => (
-                <tr key={p.planId.toString()} className="bg-ink-850 [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg">
-                  <td className="py-1.5 font-mono text-ink-400">{p.planId.toString()}</td>
-                  <td className="font-mono">{p.tenorDays.toString()}d</td>
-                  <td className="font-mono text-amber-400">{bpsToPercent(p.aprBps)}</td>
-                  <td className="font-mono">{p.minDeposit > 0n ? formatUsdc(p.minDeposit) : '—'}</td>
-                  <td className="font-mono">{p.maxDeposit > 0n ? formatUsdc(p.maxDeposit) : '—'}</td>
-                  <td className="font-mono">{bpsToPercent(p.earlyWithdrawPenaltyBps)}</td>
-                  <td>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.enabled ? 'bg-emerald-900/50 text-emerald-300 ring-1 ring-emerald-700/50' : 'bg-ink-800 text-ink-500'}`}>
-                      {p.enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="flex gap-1 items-center">
-                      <input className={`${input} w-16`} value={aprEdits[p.planId.toString()] ?? ''}
-                        onChange={(e) => setAprEdits((s) => ({ ...s, [p.planId.toString()]: e.target.value }))} placeholder="bps" />
-                      <TxButton key={`update-apr-${p.planId}`} label="Update" address={core} abi={savingCoreAbi} functionName="updatePlan"
-                        args={parseNewAprBps(aprEdits[p.planId.toString()] ?? '') !== null ? [p.planId, parseNewAprBps(aprEdits[p.planId.toString()] ?? '')] : undefined}
-                        disabled={parseNewAprBps(aprEdits[p.planId.toString()] ?? '') === null}
-                        onConfirmed={() => { onChanged(); setAprEdits((s) => ({ ...s, [p.planId.toString()]: '' })) }}
-                        className={btnSecondary} />
+          <div className="space-y-3">
+            {plans.map((p) => {
+              const key = p.planId.toString()
+              const newAprVal = parseNewAprBps(aprEdits[key] ?? '')
+              return (
+                <div key={key} className="rounded-xl border border-ink-700 bg-ink-850 p-4 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                    <div>
+                      <p className={labelClass}>Plan</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="font-mono text-ink-200">#{key}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.enabled ? 'bg-emerald-900/50 text-emerald-300 ring-1 ring-emerald-700/50' : 'bg-ink-800 text-ink-500'}`}>
+                          {p.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </div>
                     </div>
-                  </td>
-                  <td className="text-right">
+                    <div>
+                      <p className={labelClass}>Tenor</p>
+                      <p className="font-mono text-ink-100 mt-0.5">{p.tenorDays.toString()}d</p>
+                    </div>
+                    <div>
+                      <p className={labelClass}>APR</p>
+                      <p className="font-mono text-amber-400 text-base mt-0.5">{bpsToPercent(p.aprBps)}</p>
+                    </div>
+                    <div>
+                      <p className={labelClass}>Min / Max</p>
+                      <p className="font-mono text-ink-100 mt-0.5">
+                        {p.minDeposit > 0n ? formatUsdc(p.minDeposit) : '—'} / {p.maxDeposit > 0n ? formatUsdc(p.maxDeposit) : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={labelClass}>Penalty</p>
+                      <p className="font-mono text-ink-100 mt-0.5">{bpsToPercent(p.earlyWithdrawPenaltyBps)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 xl:justify-end shrink-0">
+                    <label className={labelClass}>New APR
+                      <div className="flex gap-1.5 items-center mt-1">
+                        <input className={`${input} w-20`} value={aprEdits[key] ?? ''}
+                          onChange={(e) => setAprEdits((s) => ({ ...s, [key]: e.target.value }))} placeholder="bps" />
+                        <TxButton key={`update-apr-${key}`} label="Update" address={core} abi={savingCoreAbi} functionName="updatePlan"
+                          args={newAprVal !== null ? [p.planId, newAprVal] : undefined}
+                          disabled={newAprVal === null}
+                          onConfirmed={() => { onChanged(); setAprEdits((s) => ({ ...s, [key]: '' })) }}
+                          className={btnSecondary} />
+                      </div>
+                    </label>
                     {p.enabled ? (
-                      <TxButton key={`disable-${p.planId}`} label="Disable" address={core} abi={savingCoreAbi}
+                      <TxButton key={`disable-${key}`} label="Disable" address={core} abi={savingCoreAbi}
                         functionName="disablePlan" args={[p.planId]} onConfirmed={onChanged} className={btnDanger} />
                     ) : (
-                      <TxButton key={`enable-${p.planId}`} label="Enable" address={core} abi={savingCoreAbi}
+                      <TxButton key={`enable-${key}`} label="Enable" address={core} abi={savingCoreAbi}
                         functionName="enablePlan" args={[p.planId]} onConfirmed={onChanged} />
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 
@@ -246,22 +260,22 @@ export function AdminPanel({ onChanged }: { onChanged: () => void }) {
             args={keeperVal !== null ? [keeperVal] : undefined} disabled={!keeperValid} onConfirmed={onChanged} /></div>
       </div>
 
-      <div className={card}>
+      <div className={`${card} lg:col-span-2`}>
         <h3 className={sectionTitle}>Emergency & demo</h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <TxButton key="pause-core" label={corePaused ? 'Unpause SavingCore' : 'Pause SavingCore'} address={core} abi={savingCoreAbi}
             functionName={corePaused ? 'unpause' : 'pause'} onConfirmed={onChanged} className={btnDanger} />
           <TxButton key="pause-vault" label={vaultPaused ? 'Unpause VaultManager' : 'Pause VaultManager'} address={vault} abi={vaultManagerAbi}
             functionName={vaultPaused ? 'unpause' : 'pause'} onConfirmed={onChanged} className={btnDanger} />
         </div>
         <h4 className="text-sm text-ink-300 pt-2 font-medium">Mint MockUSDC (demo)</h4>
-        <div className="grid grid-cols-2 gap-2">
-          <input className={input} value={mintTo} onChange={(e) => setMintTo(e.target.value)} placeholder="To (0x…)" />
-          <input className={input} value={mintAmt} onChange={(e) => setMintAmt(e.target.value)} placeholder="Amount (USDC)" />
+        <div className="flex flex-wrap gap-2 items-center">
+          <input className={`${input} sm:w-72`} value={mintTo} onChange={(e) => setMintTo(e.target.value)} placeholder="To (0x…)" />
+          <input className={`${input} sm:w-48`} value={mintAmt} onChange={(e) => setMintAmt(e.target.value)} placeholder="Amount (USDC)" />
+          <TxButton key="mint" label="Mint" address={usdc} abi={mockUsdcAbi} functionName="mint"
+            args={mintValid ? [mintTo as `0x${string}`, mintAmtVal] : undefined}
+            disabled={!mintValid} onConfirmed={onChanged} />
         </div>
-        <TxButton key="mint" label="Mint" address={usdc} abi={mockUsdcAbi} functionName="mint"
-          args={mintValid ? [mintTo as `0x${string}`, mintAmtVal] : undefined}
-          disabled={!mintValid} onConfirmed={onChanged} />
       </div>
     </div>
   )
