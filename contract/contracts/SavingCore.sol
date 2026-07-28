@@ -165,6 +165,21 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         require(ownerOf(depositId) == msg.sender, "not owner");
     }
 
+    /// @dev Wraps vault.payInterest so a PAUSED vault degrades exactly like an UNDERFUNDED one
+    ///      (paid = 0, shortfall tracked as pendingInterest) instead of reverting the whole
+    ///      transaction. Without this, a paused vault would revert the principal transfer that
+    ///      already happened earlier in the same call (EVM revert unwinds the full tx), freezing
+    ///      principal — contradicting the C1 guarantee that principal is never held hostage by
+    ///      the vault's state.
+    function _payInterestSafe(address to, uint256 amount) internal returns (uint256 paid) {
+        if (amount == 0) return 0;
+        try vault.payInterest(to, amount) returns (uint256 p) {
+            paid = p;
+        } catch {
+            paid = 0;
+        }
+    }
+
     function withdrawAtMaturity(uint256 depositId)
         external
         whenNotPaused
@@ -182,7 +197,7 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         d.status = DepositStatus.Withdrawn;
 
         usdc.safeTransfer(msg.sender, principal);
-        uint256 paid = vault.payInterest(msg.sender, interest);
+        uint256 paid = _payInterestSafe(msg.sender, interest);
         if (paid < interest) {
             d.pendingInterest = interest - paid; // C1: owe the rest, claimable later
         }
@@ -225,7 +240,7 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         Deposit storage d = deposits[depositId];
         uint256 owed = d.pendingInterest;
         require(owed > 0, "nothing pending");
-        uint256 paid = vault.payInterest(msg.sender, owed);
+        uint256 paid = _payInterestSafe(msg.sender, owed);
         d.pendingInterest = owed - paid;
         emit InterestClaimed(depositId, msg.sender, paid);
     }
@@ -251,7 +266,7 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         d.status = DepositStatus.ManualRenewed;
 
         // Pull interest from vault into this contract to compound. C1: only the paid part compounds.
-        uint256 paid = vault.payInterest(address(this), interest);
+        uint256 paid = _payInterestSafe(address(this), interest);
         if (paid < interest) {
             d.pendingInterest = interest - paid; // owner can claim the rest against the OLD NFT
         }
@@ -282,7 +297,7 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         d.status = DepositStatus.AutoRenewed;
 
         // Interest to compound is paid into this contract first. User has priority over keeper.
-        uint256 paidInterest = vault.payInterest(address(this), interest);
+        uint256 paidInterest = _payInterestSafe(address(this), interest);
         if (paidInterest < interest) {
             d.pendingInterest = interest - paidInterest;
         }
@@ -290,7 +305,7 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
 
         // Keeper reward, only from what the vault can still afford, sent to caller directly.
         uint256 reward = Math.mulDiv(interest, keeperRewardBps, BPS_DENOMINATOR);
-        uint256 paidReward = reward > 0 ? vault.payInterest(msg.sender, reward) : 0;
+        uint256 paidReward = _payInterestSafe(msg.sender, reward);
         if (paidReward > 0) {
             emit KeeperRewardPaid(depositId, msg.sender, paidReward);
         }

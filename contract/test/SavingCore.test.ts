@@ -281,6 +281,25 @@ describe("SavingCore", function () {
         await expect(core.connect(alice).claimInterest(0n)).to.be.revertedWith("nothing pending");
       });
     });
+
+    describe("vault PAUSED (not underfunded) does not freeze principal either", function () {
+      it("pays principal fully, records pendingInterest, and lets owner claim once unpaused", async () => {
+        const interest = await core.previewInterest(0n);
+        await vault.connect(owner).pause();
+
+        await time.increase(Number(TENOR_DAYS) * DAY);
+        const before = await usdc.balanceOf(alice.address);
+        await expect(core.connect(alice).withdrawAtMaturity(0n)).to.not.be.reverted;
+        // principal returned in full even though the vault itself is paused
+        expect(await usdc.balanceOf(alice.address)).to.equal(before + 1000n * M);
+        expect((await core.deposits(0n)).pendingInterest).to.equal(interest);
+
+        await vault.connect(owner).unpause();
+        await expect(core.connect(alice).claimInterest(0n))
+          .to.emit(core, "InterestClaimed").withArgs(0n, alice.address, interest);
+        expect((await core.deposits(0n)).pendingInterest).to.equal(0n);
+      });
+    });
   });
 
   describe("earlyWithdraw", function () {
@@ -407,6 +426,21 @@ describe("SavingCore", function () {
           .to.emit(core, "InterestClaimed").withArgs(0n, alice.address, interest);
         expect(await usdc.balanceOf(alice.address)).to.equal(before + interest);
         expect((await core.deposits(0n)).pendingInterest).to.equal(0n);
+      });
+    });
+
+    describe("vault PAUSED (not underfunded) does not block the renewal", function () {
+      it("does not compound unpaid interest and records pendingInterest on the old deposit", async () => {
+        const interest = await core.previewInterest(0n);
+        await vault.connect(owner).pause();
+
+        await time.increase(Number(TENOR_DAYS) * DAY);
+        const tx = await core.connect(alice).renewDeposit(0n, 1n);
+
+        const newPrincipal = 1000n * M; // vault paused → nothing paid → nothing compounded
+        await expect(tx).to.emit(core, "Renewed").withArgs(0n, 1n, newPrincipal, 1n);
+        expect((await core.deposits(1n)).principal).to.equal(newPrincipal);
+        expect((await core.deposits(0n)).pendingInterest).to.equal(interest);
       });
     });
   });
@@ -553,6 +587,24 @@ describe("SavingCore", function () {
       expect((await core.deposits(1n)).principal).to.equal(1000n * M + interest); // user made WHOLE
       expect((await core.deposits(0n)).pendingInterest).to.equal(0n);
       expect(await usdc.balanceOf(keeper.address)).to.equal(kBefore + reward / 2n); // keeper partial
+    });
+
+    describe("vault PAUSED (not underfunded) does not block auto-renew", function () {
+      it("still auto-renews, recording pendingInterest and paying the keeper nothing", async () => {
+        const interest = await core.previewInterest(0n);
+        await vault.connect(owner).pause();
+
+        await time.increase((Number(TENOR_DAYS) + GRACE_DAYS) * DAY);
+        const keeperBefore = await usdc.balanceOf(keeper.address);
+        const tx = await core.connect(keeper).autoRenewDeposit(0n);
+
+        const newPrincipal = 1000n * M; // vault paused → nothing paid → nothing compounded
+        await expect(tx).to.emit(core, "Renewed").withArgs(0n, 1n, newPrincipal, 0n);
+        expect((await core.deposits(1n)).principal).to.equal(newPrincipal);
+        expect((await core.deposits(0n)).pendingInterest).to.equal(interest);
+        expect(await usdc.balanceOf(keeper.address)).to.equal(keeperBefore);
+        await expect(tx).to.not.emit(core, "KeeperRewardPaid");
+      });
     });
   });
 
