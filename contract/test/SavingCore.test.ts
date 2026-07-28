@@ -174,6 +174,13 @@ describe("SavingCore", function () {
       await expect(core.connect(alice).openDeposit(0n, 6000n * M)).to.be.revertedWith("above max");
     });
 
+    it("rejects a zero-amount deposit even on a plan with no configured minDeposit", async () => {
+      // minDeposit=0 means "no limit", not "0 is a valid amount" — without its own check,
+      // a zero-min plan would let anyone spam-mint zero-principal deposits/events for free.
+      await core.connect(owner).createPlan(TENOR_DAYS, APR_BPS, 0, 0, PENALTY_BPS); // planId 1, no limits
+      await expect(core.connect(alice).openDeposit(1n, 0n)).to.be.revertedWith("zero amount");
+    });
+
     it("rejects disabled plan", async () => {
       await core.connect(owner).disablePlan(0n);
       await expect(core.connect(alice).openDeposit(0n, 1000n * M)).to.be.revertedWith("plan disabled");

@@ -138,6 +138,7 @@ contract SavingCore is ERC721, Ownable, Pausable, ReentrancyGuard {
         require(planId < _plans.length, "no plan");
         Plan memory p = _plans[planId];
         require(p.enabled, "plan disabled");
+        require(amount > 0, "zero amount");
         if (p.minDeposit > 0) require(amount >= p.minDeposit, "below min");
         if (p.maxDeposit > 0) require(amount <= p.maxDeposit, "above max");
 
