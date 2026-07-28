@@ -158,20 +158,33 @@ with **problem → solution → trade-off**.
   bank could freeze a user's *own principal* forever simply by never funding the
   vault.
 - **Solution:** `VaultManager.payInterest` pays what it can and returns the paid
-  amount; it never reverts. `SavingCore` returns principal in full immediately
-  whenever the system is operational — an empty or underfunded vault can never
-  freeze it, because principal is transferred from `SavingCore`'s own balance
-  *before* the vault is ever called. Any interest shortfall is recorded in
+  amount; it never reverts on a *shortfall*. `SavingCore` returns principal in full
+  immediately whenever the system is operational — an empty or underfunded vault
+  can never freeze it, because principal is transferred from `SavingCore`'s own
+  balance *before* the vault is ever called. Any interest shortfall is recorded in
   `deposit.pendingInterest`, and the certificate NFT is **not** burned. The holder
   calls `claimInterest(depositId)` to collect the remainder once the vault is
   refunded. Applied uniformly to `withdrawAtMaturity`, `renewDeposit`, and
   `autoRenewDeposit`. The one thing that *can* withhold principal is a deliberate
-  emergency pause (required by Business Rule #6, §8) — that's an intentional admin
-  stop, not a vault-funding failure, and C1 is about the latter.
+  emergency pause of `SavingCore` itself (required by Business Rule #6, §8) — that's
+  an intentional admin stop, not a vault-funding failure, and C1 is about the latter.
+  `VaultManager` also has its own independent pause (defense-in-depth on the payout
+  path, §3 choice 4) — `payInterest` still *reverts* when called while paused, but
+  `SavingCore` never lets that revert propagate: every call site wraps
+  `vault.payInterest` in a `try/catch` (`_payInterestSafe`, `SavingCore.sol:174-181`)
+  and treats a paused-vault revert exactly like a shortfall (`paid = 0`, tracked as
+  `pendingInterest`). Without this, pausing only the vault — without touching
+  `SavingCore.pause()` — would have reverted the principal transfer in the *same*
+  transaction (EVM unwinds the whole tx on revert), silently freezing principal even
+  though the "empty vault" case above was already handled. Found and fixed via a
+  dedicated security audit of this repo.
 - **Trade-off:** The bank still owes the interest — it becomes an on-chain
   liability (`pendingInterest`) instead of the user's funds being locked. Slightly
-  more state per deposit.
-- **Tests:** `SavingCore` → "C1: principal always safe when vault is short".
+  more state per deposit, plus one extra `try/catch`-wrapping helper.
+- **Tests:** `SavingCore` → "C1: principal always safe when vault is short" (vault
+  underfunded) and "vault PAUSED (not underfunded) does not freeze principal
+  either"/"...does not block the renewal"/"...does not block auto-renew" (vault
+  paused instead of underfunded — the same guarantee, a different cause).
 
 ### 5.2 G — Permissionless keeper incentive (original idea; answers Open Question #3)
 
@@ -249,12 +262,14 @@ let the holder call `claimInterest` later. We chose this because a user's princi
 should never be hostage to the bank's liability. The interest is still owed and
 tracked on-chain; only the *payout timing* is deferred, and only for the interest.
 Precisely: principal is returned in full immediately whenever the system is
-operational — an empty or underfunded vault (`VaultManager.payInterest`,
+operational — an empty **or paused** vault (`VaultManager.payInterest`,
 `contracts/VaultManager.sol:64-77`) can never freeze it, because `withdrawAtMaturity`
-transfers principal from `SavingCore`'s own balance (`contracts/SavingCore.sol:184`)
-*before* it even calls the vault. The only thing that withholds principal is a
-deliberate emergency pause, which §8's Business Rules Checklist (rule 6, "paused ⇒
-no withdrawals/renewals") requires.
+transfers principal from `SavingCore`'s own balance (`contracts/SavingCore.sol:199`)
+*before* it even calls the vault, and any `payInterest` revert (shortfall or pause) is
+caught by `_payInterestSafe` (§5.1) rather than unwinding that transfer. The only
+thing that withholds principal is a deliberate emergency pause of `SavingCore` itself,
+which §8's Business Rules Checklist (rule 6, "paused ⇒ no withdrawals/renewals")
+requires.
 
 ### Q3 — Dead bot for a month: does the user lose anything?
 
@@ -267,7 +282,7 @@ the renewal. The user keeps their original APR for the renewed term.
 
 ### Q4 — Rounding dust: who keeps it, and can it cause a revert?
 
-Integer division in `mulDiv` (`contracts/SavingCore.sol:334-337`) always truncates
+Integer division in `mulDiv` (`contracts/SavingCore.sol:349-352`) always truncates
 **down**, so `mulDiv` floors and the bank's liability *is* the floored amount — the
 remainder is never created as an obligation, it simply never leaves the vault (the
 bank keeps the dust). Concretely, our own worked example in §4 has real dust: 1,000
@@ -284,10 +299,10 @@ still succeeds, principal is returned in full, and the vault balance is unchange
 
 | Action | Condition | Operator | Line | Reason |
 |---|---|---|---|---|
-| `withdrawAtMaturity` | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:176` | The **exact** maturity second counts as "at maturity", not early. |
-| `earlyWithdraw` | `block.timestamp < maturityAt` | `<` | `SavingCore.sol:201` | Strictly before maturity is early; the two conditions are exact complements, so every instant maps to exactly one path. |
-| `renewDeposit` (manual) | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:242` | Renew is allowed from maturity onward, with no upper bound. |
-| `autoRenewDeposit` | `block.timestamp >= maturityAt + GRACE_PERIOD` | `>=` | `SavingCore.sol:276` | The user can still be auto-renewed **at** the exact end of the grace period. |
+| `withdrawAtMaturity` | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:191` | The **exact** maturity second counts as "at maturity", not early. |
+| `earlyWithdraw` | `block.timestamp < maturityAt` | `<` | `SavingCore.sol:216` | Strictly before maturity is early; the two conditions are exact complements, so every instant maps to exactly one path. |
+| `renewDeposit` (manual) | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:257` | Renew is allowed from maturity onward, with no upper bound. |
+| `autoRenewDeposit` | `block.timestamp >= maturityAt + GRACE_PERIOD` | `>=` | `SavingCore.sol:291` | The user can still be auto-renewed **at** the exact end of the grace period. |
 
 At the exact end of the grace period the user can *still* manually renew too, because
 manual renew has no upper time bound — it stays available until a keeper actually
@@ -304,7 +319,7 @@ of existing deposits from a disabled plan can still:
   snapshotted terms** and does not read the current plan, so it doesn't check
   `enabled`.
 - `renewDeposit` (manual) — allowed **only into an enabled plan**. Renewing *into*
-  a disabled plan reverts, at `contracts/SavingCore.sol:245`:
+  a disabled plan reverts, at `contracts/SavingCore.sol:260`:
 
 ```solidity
 require(np.enabled, "plan disabled");
@@ -328,7 +343,7 @@ reentrancy vector.)
 1. `nonReentrant` on every value-moving function — a reentrant call reverts with
    `ReentrancyGuardReentrantCall`.
 2. Checks-Effects-Interactions: the deposit status is flipped **before** any external
-   call, e.g. in `withdrawAtMaturity` (`contracts/SavingCore.sol:182` and `:184`):
+   call, e.g. in `withdrawAtMaturity` (`contracts/SavingCore.sol:197` and `:199`):
 
 ```solidity
 d.status = DepositStatus.Withdrawn;   // effect first
@@ -422,7 +437,7 @@ Hardhat package, under `../docs/specs/` and `../docs/plans/`.
 
 The design spec and the task-by-task implementation plan are complete and approved
 (`../docs/specs/` and `../docs/plans/`). The contracts and tests are **implemented
-and passing**: 78/78 tests green across `test/MockUSDC.test.ts`,
+and passing**: 81/81 tests green across `test/MockUSDC.test.ts`,
 `test/VaultManager.test.ts`, and `test/SavingCore.test.ts`.
 
 Statement / branch / function / line coverage per contract:

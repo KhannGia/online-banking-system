@@ -58,6 +58,40 @@ from `TESTNET_PRIVATE_KEY` in `contract/.env` — same account the deploy script
 account does not need to own any of the deposits it renews; that's the point of the bonus-G
 permissionless design.
 
+## Seeding demo deposits (local node only)
+
+For a live presentation, waiting real time for a 180-day tenor (or the 3-day grace period) to
+pass isn't practical. `contract/scripts/seed-demo.ts` seeds 4 deposits under **one** account and
+uses `evm_increaseTime`/`evm_mine` (local-Hardhat-only test RPC methods — this does not work
+against Sepolia or any real network) to land each one directly in the state needed for a
+specific demo flow:
+
+```bash
+# terminal 1 — fresh node
+cd contract && npx hardhat node
+
+# terminal 2 — fresh deploy, then seed
+cd contract
+npx hardhat deploy --network localhost
+npm run seed:demo
+cd ../frontend && npm run codegen && npm run dev
+```
+
+The script prints the demo account's address (import it into MetaMask — it's the only account
+you need) and, after seeding, prints exactly which deposit id maps to which action:
+
+- **Withdraw at maturity** — a deposit opened, then time-jumped past `maturityAt`.
+- **Manual renew** — a second deposit, same jump.
+- **Auto-renew** — a third deposit, same jump (past `maturityAt + GRACE_PERIOD` too); the
+  connected account can auto-renew it even though it also owns it — permissionless just means
+  it isn't *restricted* to someone else.
+- **Early withdraw** — a fourth deposit opened *after* the time jump, so it's still fresh
+  (not matured) at demo time.
+
+Re-run all three commands (fresh node → deploy → seed) if you restart the Hardhat node — its
+in-memory chain state (and the time jump) resets, and redeploying assigns fresh addresses that
+the frontend needs to pick up via `codegen` again.
+
 ## Health checks
 
 There's no dashboard; confirm liveness directly against the RPC:

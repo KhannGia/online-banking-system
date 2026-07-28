@@ -48,7 +48,7 @@ resolve `node_modules` for IntelliSense/type-checking.
 | Command | Description |
 |---|---|
 | `npm run compile` | Compile all contracts (Solidity 0.8.28) |
-| `npm test` | Run the Mocha/Chai contract test suite (78 tests) |
+| `npm test` | Run the Mocha/Chai contract test suite (81 tests) |
 | `npm run node` | Start a local Hardhat node (chain id `31337`) |
 | `npm run size` | Print deployed/init-code contract sizes |
 | `npm run clean` | Remove Hardhat's `cache/` and `artifacts/` |
@@ -56,6 +56,7 @@ resolve `node_modules` for IntelliSense/type-checking.
 | `npm run run:ethereum` | Run a script against the `ethereum` (mainnet) network |
 | `npm run keeper:sepolia` | Run the permissionless keeper bot (`scripts/keeper-bot.ts`) against `sepolia` — set `ONCE=1` for a single scan |
 | `npm run keeper:localhost` | Same, against a local Hardhat node |
+| `npm run seed:demo` | Seed 4 deposits (one per demo use case) on a local node, for live presentations (`scripts/seed-demo.ts`) |
 | `npx hardhat deploy --network <net>` | Deploy via `hardhat-deploy` (not a package.json script, used directly) |
 | `npx hardhat coverage` | Solidity coverage report |
 <!-- /AUTO-GENERATED -->
@@ -79,7 +80,7 @@ Both `.env` files are gitignored — never commit real keys.
 ## Testing
 
 ```bash
-cd contract && npm test        # 78 contract tests
+cd contract && npm test        # 81 contract tests
 cd contract && npx hardhat coverage   # coverage report, >90% required per contract
 cd frontend && npm test        # 61 frontend unit tests (Vitest)
 ```

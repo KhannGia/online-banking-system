@@ -11,7 +11,7 @@ by a permissionless keeper after a grace period.
 | | |
 |---|---|
 | **Contracts** | `MockUSDC` (6-decimal test ERC-20), `VaultManager` (interest pool), `SavingCore` (deposits + ERC-721 certificates) |
-| **Tests** | 78 contract tests, 61 frontend tests — all passing |
+| **Tests** | 81 contract tests, 61 frontend tests — all passing |
 | **Coverage** | MockUSDC 100%, VaultManager 100%, SavingCore 100% statements / 95.45% branches (requirement: >90%) |
 | **Bonus challenges** | C1 (principal always safe), F (timelocked vault withdrawal), G (permissionless keeper) — all implemented and tested |
 | **Networks** | Local Hardhat (`31337`) and Sepolia (`11155111`, already deployed) |
@@ -35,7 +35,7 @@ These exact values are used in the contracts, tests, deploy script, and demo.
 .
 ├── contract/              # Smart contracts package (Hardhat + TypeScript)
 │   ├── contracts/         # MockUSDC.sol, VaultManager.sol, SavingCore.sol
-│   ├── test/              # 78 tests
+│   ├── test/              # 81 tests
 │   ├── deploy/            # hardhat-deploy script (wires contracts + default plan)
 │   └── README.md          # ★ Design Answers (assignment §7.4 / §8.2) live here
 ├── frontend/              # React dApp (Vite + wagmi + RainbowKit)
@@ -77,7 +77,7 @@ If you use `nvm`: `nvm use` picks up `.nvmrc`.
 cd contract
 npm install
 
-npm test                    # 78 tests
+npm test                    # 81 tests
 npx hardhat coverage        # coverage report (>90% on every contract)
 npx hardhat compile
 ```
@@ -111,6 +111,15 @@ npm run keeper:sepolia             # loop forever, polling every 60s (POLL_INTER
 Swap `keeper:sepolia` for `keeper:localhost` against a local node. Uses the same
 `TESTNET_PRIVATE_KEY` from `contract/.env` as the deploy scripts — the account running it does
 not need to own any of the deposits it renews.
+
+### Demo seeding script (local node only)
+
+`contract/scripts/seed-demo.ts` (`npm run seed:demo`, against a fresh `--network localhost`)
+opens 4 deposits under one account and fast-forwards the chain with `evm_increaseTime`, so each
+deposit lands directly in the lifecycle state needed for a live demo — withdraw at maturity,
+manual renew, auto-renew, and early withdraw — without waiting real time. Prints the resulting
+deposit ids and which UI action to click for each. See [`docs/RUNBOOK.md`](docs/RUNBOOK.md) for
+the full walkthrough.
 
 ## Setup — frontend
 
