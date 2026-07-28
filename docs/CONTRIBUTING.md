@@ -48,7 +48,7 @@ resolve `node_modules` for IntelliSense/type-checking.
 | Command | Description |
 |---|---|
 | `npm run compile` | Compile all contracts (Solidity 0.8.28) |
-| `npm test` | Run the Mocha/Chai contract test suite (81 tests) |
+| `npm test` | Run the Mocha/Chai contract test suite (82 tests) |
 | `npm run node` | Start a local Hardhat node (chain id `31337`) |
 | `npm run size` | Print deployed/init-code contract sizes |
 | `npm run clean` | Remove Hardhat's `cache/` and `artifacts/` |
@@ -80,7 +80,7 @@ Both `.env` files are gitignored — never commit real keys.
 ## Testing
 
 ```bash
-cd contract && npm test        # 81 contract tests
+cd contract && npm test        # 82 contract tests
 cd contract && npx hardhat coverage   # coverage report, >90% required per contract
 cd frontend && npm test        # 61 frontend unit tests (Vitest)
 ```

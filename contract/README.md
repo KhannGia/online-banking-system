@@ -104,6 +104,14 @@ These are the choices beyond the minimum three contracts, and why:
    contract used to prove the reentrancy guard on the `_safeMint` path. Not part of
    the deployed system.
 
+9. **`openDeposit` rejects a zero amount unconditionally** (`require(amount > 0, "zero
+   amount")`, `SavingCore.sol:141`) — a plan with `minDeposit == 0` means "no configured
+   floor," not "0 is a valid deposit." Without its own check, that combination let anyone
+   open zero-principal deposits for free: minting a certificate NFT and emitting a
+   `DepositOpened` event per call, at only the cost of gas — a cheap way to spam the
+   event log and inflate `nextDepositId`/NFT supply with junk. Test: `describe("openDeposit")`
+   → "rejects a zero-amount deposit even on a plan with no configured minDeposit".
+
 ---
 
 ## 4. Interest & Penalty Math
@@ -171,7 +179,7 @@ with **problem → solution → trade-off**.
   `VaultManager` also has its own independent pause (defense-in-depth on the payout
   path, §3 choice 4) — `payInterest` still *reverts* when called while paused, but
   `SavingCore` never lets that revert propagate: every call site wraps
-  `vault.payInterest` in a `try/catch` (`_payInterestSafe`, `SavingCore.sol:174-181`)
+  `vault.payInterest` in a `try/catch` (`_payInterestSafe`, `SavingCore.sol:175-182`)
   and treats a paused-vault revert exactly like a shortfall (`paid = 0`, tracked as
   `pendingInterest`). Without this, pausing only the vault — without touching
   `SavingCore.pause()` — would have reverted the principal transfer in the *same*
@@ -240,7 +248,7 @@ Additional events for our features: `InterestClaimed`, `KeeperRewardPaid`,
 
 **Bob (the current NFT holder) can withdraw.** Every action checks the certificate
 owner, not the original depositor. The deciding line is in `SavingCore._requireOwner`
-(`contracts/SavingCore.sol:164-166`):
+(`contracts/SavingCore.sol:165-167`):
 
 ```solidity
 require(ownerOf(depositId) == msg.sender, "not owner");
@@ -264,7 +272,7 @@ tracked on-chain; only the *payout timing* is deferred, and only for the interes
 Precisely: principal is returned in full immediately whenever the system is
 operational — an empty **or paused** vault (`VaultManager.payInterest`,
 `contracts/VaultManager.sol:64-77`) can never freeze it, because `withdrawAtMaturity`
-transfers principal from `SavingCore`'s own balance (`contracts/SavingCore.sol:199`)
+transfers principal from `SavingCore`'s own balance (`contracts/SavingCore.sol:200`)
 *before* it even calls the vault, and any `payInterest` revert (shortfall or pause) is
 caught by `_payInterestSafe` (§5.1) rather than unwinding that transfer. The only
 thing that withholds principal is a deliberate emergency pause of `SavingCore` itself,
@@ -282,7 +290,7 @@ the renewal. The user keeps their original APR for the renewed term.
 
 ### Q4 — Rounding dust: who keeps it, and can it cause a revert?
 
-Integer division in `mulDiv` (`contracts/SavingCore.sol:349-352`) always truncates
+Integer division in `mulDiv` (`contracts/SavingCore.sol:350-353`) always truncates
 **down**, so `mulDiv` floors and the bank's liability *is* the floored amount — the
 remainder is never created as an obligation, it simply never leaves the vault (the
 bank keeps the dust). Concretely, our own worked example in §4 has real dust: 1,000
@@ -299,10 +307,10 @@ still succeeds, principal is returned in full, and the vault balance is unchange
 
 | Action | Condition | Operator | Line | Reason |
 |---|---|---|---|---|
-| `withdrawAtMaturity` | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:191` | The **exact** maturity second counts as "at maturity", not early. |
-| `earlyWithdraw` | `block.timestamp < maturityAt` | `<` | `SavingCore.sol:216` | Strictly before maturity is early; the two conditions are exact complements, so every instant maps to exactly one path. |
-| `renewDeposit` (manual) | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:257` | Renew is allowed from maturity onward, with no upper bound. |
-| `autoRenewDeposit` | `block.timestamp >= maturityAt + GRACE_PERIOD` | `>=` | `SavingCore.sol:291` | The user can still be auto-renewed **at** the exact end of the grace period. |
+| `withdrawAtMaturity` | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:192` | The **exact** maturity second counts as "at maturity", not early. |
+| `earlyWithdraw` | `block.timestamp < maturityAt` | `<` | `SavingCore.sol:217` | Strictly before maturity is early; the two conditions are exact complements, so every instant maps to exactly one path. |
+| `renewDeposit` (manual) | `block.timestamp >= maturityAt` | `>=` | `SavingCore.sol:258` | Renew is allowed from maturity onward, with no upper bound. |
+| `autoRenewDeposit` | `block.timestamp >= maturityAt + GRACE_PERIOD` | `>=` | `SavingCore.sol:292` | The user can still be auto-renewed **at** the exact end of the grace period. |
 
 At the exact end of the grace period the user can *still* manually renew too, because
 manual renew has no upper time bound — it stays available until a keeper actually
@@ -319,7 +327,7 @@ of existing deposits from a disabled plan can still:
   snapshotted terms** and does not read the current plan, so it doesn't check
   `enabled`.
 - `renewDeposit` (manual) — allowed **only into an enabled plan**. Renewing *into*
-  a disabled plan reverts, at `contracts/SavingCore.sol:260`:
+  a disabled plan reverts, at `contracts/SavingCore.sol:261`:
 
 ```solidity
 require(np.enabled, "plan disabled");
@@ -343,7 +351,7 @@ reentrancy vector.)
 1. `nonReentrant` on every value-moving function — a reentrant call reverts with
    `ReentrancyGuardReentrantCall`.
 2. Checks-Effects-Interactions: the deposit status is flipped **before** any external
-   call, e.g. in `withdrawAtMaturity` (`contracts/SavingCore.sol:197` and `:199`):
+   call, e.g. in `withdrawAtMaturity` (`contracts/SavingCore.sol:198` and `:200`):
 
 ```solidity
 d.status = DepositStatus.Withdrawn;   // effect first
@@ -437,7 +445,7 @@ Hardhat package, under `../docs/specs/` and `../docs/plans/`.
 
 The design spec and the task-by-task implementation plan are complete and approved
 (`../docs/specs/` and `../docs/plans/`). The contracts and tests are **implemented
-and passing**: 81/81 tests green across `test/MockUSDC.test.ts`,
+and passing**: 82/82 tests green across `test/MockUSDC.test.ts`,
 `test/VaultManager.test.ts`, and `test/SavingCore.test.ts`.
 
 Statement / branch / function / line coverage per contract:
@@ -446,7 +454,7 @@ Statement / branch / function / line coverage per contract:
 |---|---|---|---|---|
 | `MockUSDC.sol` | 100% | 100% | 100% | 100% |
 | `VaultManager.sol` | 100% | 100% | 100% | 100% |
-| `SavingCore.sol` | 100% | 95.45% | 100% | 100% |
+| `SavingCore.sol` | 100% | 95.54% | 100% | 100% |
 
 The system deploys locally via `npx hardhat deploy --network hardhat` (wires all
 three contracts and creates the default 180-day / 225-bps / 550-bps plan; see §9).

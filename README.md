@@ -11,8 +11,8 @@ by a permissionless keeper after a grace period.
 | | |
 |---|---|
 | **Contracts** | `MockUSDC` (6-decimal test ERC-20), `VaultManager` (interest pool), `SavingCore` (deposits + ERC-721 certificates) |
-| **Tests** | 81 contract tests, 61 frontend tests — all passing |
-| **Coverage** | MockUSDC 100%, VaultManager 100%, SavingCore 100% statements / 95.45% branches (requirement: >90%) |
+| **Tests** | 82 contract tests, 61 frontend tests — all passing |
+| **Coverage** | MockUSDC 100%, VaultManager 100%, SavingCore 100% statements / 95.54% branches (requirement: >90%) |
 | **Bonus challenges** | C1 (principal always safe), F (timelocked vault withdrawal), G (permissionless keeper) — all implemented and tested |
 | **Networks** | Local Hardhat (`31337`) and Sepolia (`11155111`, already deployed) |
 
@@ -35,7 +35,7 @@ These exact values are used in the contracts, tests, deploy script, and demo.
 .
 ├── contract/              # Smart contracts package (Hardhat + TypeScript)
 │   ├── contracts/         # MockUSDC.sol, VaultManager.sol, SavingCore.sol
-│   ├── test/              # 81 tests
+│   ├── test/              # 82 tests
 │   ├── deploy/            # hardhat-deploy script (wires contracts + default plan)
 │   └── README.md          # ★ Design Answers (assignment §7.4 / §8.2) live here
 ├── frontend/              # React dApp (Vite + wagmi + RainbowKit)
@@ -77,7 +77,7 @@ If you use `nvm`: `nvm use` picks up `.nvmrc`.
 cd contract
 npm install
 
-npm test                    # 81 tests
+npm test                    # 82 tests
 npx hardhat coverage        # coverage report (>90% on every contract)
 npx hardhat compile
 ```
