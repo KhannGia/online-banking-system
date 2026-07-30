@@ -56,7 +56,6 @@ resolve `node_modules` for IntelliSense/type-checking.
 | `npm run run:ethereum` | Run a script against the `ethereum` (mainnet) network |
 | `npm run keeper:sepolia` | Run the permissionless keeper bot (`scripts/keeper-bot.ts`) against `sepolia` — set `ONCE=1` for a single scan |
 | `npm run keeper:localhost` | Same, against a local Hardhat node |
-| `npm run seed:demo` | Seed 4 deposits (one per demo use case) on a local node, for live presentations (`scripts/seed-demo.ts`) |
 | `npx hardhat deploy --network <net>` | Deploy via `hardhat-deploy` (not a package.json script, used directly) |
 | `npx hardhat coverage` | Solidity coverage report |
 <!-- /AUTO-GENERATED -->

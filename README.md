@@ -112,15 +112,6 @@ Swap `keeper:sepolia` for `keeper:localhost` against a local node. Uses the same
 `TESTNET_PRIVATE_KEY` from `contract/.env` as the deploy scripts — the account running it does
 not need to own any of the deposits it renews.
 
-### Demo seeding script (local node only)
-
-`contract/scripts/seed-demo.ts` (`npm run seed:demo`, against a fresh `--network localhost`)
-opens 4 deposits under one account and fast-forwards the chain with `evm_increaseTime`, so each
-deposit lands directly in the lifecycle state needed for a live demo — withdraw at maturity,
-manual renew, auto-renew, and early withdraw — without waiting real time. Prints the resulting
-deposit ids and which UI action to click for each. See [`docs/RUNBOOK.md`](docs/RUNBOOK.md) for
-the full walkthrough.
-
 ## Setup — frontend
 
 ```bash

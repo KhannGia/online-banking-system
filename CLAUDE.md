@@ -43,5 +43,4 @@ cd frontend && npm run codegen    # regenerate wagmi bindings
 
 cd contract && npm test           # hardhat test
 cd contract && npm run node       # local hardhat node on :8545
-cd contract && npm run seed:demo  # seed demo data on localhost
 ```
