@@ -30,6 +30,37 @@ redeploy if you need a fresh instance.
 4. Fund the vault as the owner account (Admin tab → Fund vault) before demoing interest/claim
    flows — a freshly deployed `VaultManager` starts empty.
 
+### Frontend to Vercel
+
+`vercel.json` at the repo root drives the build, so importing the repo on Vercel needs **no
+manual Root Directory change** — leave it at the repo root and Vercel picks up:
+
+```
+installCommand   npm --prefix frontend install
+buildCommand     npm --prefix frontend run build
+outputDirectory  frontend/dist
+```
+
+Contract addresses ship committed in `frontend/src/generated.ts` and
+`frontend/src/config/deployBlocks.json`, so no `codegen` step runs at deploy time — the built
+site talks to the already-deployed Sepolia contracts as-is. **Re-run `npm run codegen` and
+commit the result before deploying** if you redeployed the contracts, otherwise the site keeps
+pointing at the old addresses.
+
+Both env vars are optional (`VITE_WC_PROJECT_ID`, `VITE_SEPOLIA_RPC`) and have fallbacks, so a
+deploy with no env vars configured still works. Note they are `VITE_`-prefixed, meaning Vite
+inlines them into the client bundle **at build time** — changing either on Vercel requires a
+redeploy to take effect, and neither may hold anything secret.
+
+Two limitations of the deployed site, both expected:
+
+- **Sepolia only.** The Hardhat chain (31337) stays in the chain list but its RPC is
+  `http://127.0.0.1:8545` — a browser on an HTTPS page blocks that as mixed content.
+- **Deposit list speed depends on the RPC.** `useDeposits.ts` scans `DepositOpened` logs in
+  500-block chunks from the deployment block, so the further the chain advances past it, the
+  more sequential requests that tab makes. Set `VITE_SEPOLIA_RPC` to a dedicated provider if it
+  gets slow on the default public endpoint.
+
 ### Rollback
 
 The contracts are **not upgradeable** (plain deploys, no proxy). "Rollback" means redeploying a
@@ -37,6 +68,9 @@ previous or corrected version as a new instance and re-running `npm run codegen`
 frontend points at it — there is no in-place downgrade. Old deployment JSON files under
 `contract/deployments/<network>/` are the historical record of prior addresses if you need to
 point back at one.
+
+On Vercel, rolling the **site** back is separate: use *Deployments → ⋯ → Promote to Production*
+on an earlier build, or revert the commit and let the git push redeploy.
 
 ## Running the permissionless keeper bot
 

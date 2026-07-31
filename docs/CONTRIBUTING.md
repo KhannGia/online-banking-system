@@ -2,8 +2,10 @@
 
 This repo has two independent npm/yarn packages — `frontend/` (the React dApp) and
 `contract/` (the Hardhat smart-contract project) — plus a Docker dev environment that wraps
-both. There is no root `package.json` / workspace; each package is installed and run from its
-own directory.
+both. They are **not** an npm workspace: each package has its own lockfile and is installed
+from its own directory. The root `package.json` is only a thin convenience wrapper (its
+scripts delegate via `npm --prefix`) and the deployment entry point Vercel builds from — it
+declares no dependencies of its own, so `npm install` at the root installs nothing.
 
 ## Development environment setup
 
@@ -33,6 +35,19 @@ VS Code users can instead install the **Dev Containers** extension and *Reopen i
 resolve `node_modules` for IntelliSense/type-checking.
 
 <!-- AUTO-GENERATED: package.json scripts -->
+## Available scripts — repo root
+
+Thin wrappers that delegate into the two packages, so you can run the common tasks without
+`cd`-ing. Vercel builds the site through `npm run build` here (see `vercel.json`).
+
+| Command | Description |
+|---|---|
+| `npm run dev` | `frontend`: start the Vite dev server |
+| `npm run build` | `frontend`: type-check + production build to `frontend/dist/` |
+| `npm test` | `frontend`: Vitest unit suite |
+| `npm run test:contract` | `contract`: Hardhat test suite |
+| `npm run codegen` | `frontend`: regenerate wagmi bindings + deploy blocks |
+
 ## Available scripts — `frontend/`
 
 | Command | Description |

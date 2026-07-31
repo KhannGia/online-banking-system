@@ -1,0 +1,17 @@
+{
+  "name": "cyclone",
+  "version": "1.0.0",
+  "description": "Blockchain term-deposit protocol (SavingCore) + React dApp — Blockchain Programming final project, student ID K234141651",
+  "private": true,
+  "license": "ISC",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev",
+    "test": "npm --prefix frontend test",
+    "test:contract": "npm --prefix contract test",
+    "codegen": "npm --prefix frontend run codegen"
+  }
+}

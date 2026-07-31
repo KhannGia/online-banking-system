@@ -50,6 +50,8 @@ These exact values are used in the contracts, tests, deploy script, and demo.
 ├── .devcontainer/         # VS Code Dev Containers config
 ├── docker-compose.yml     # dev container (frontend + contract, isolated from host)
 ├── Dockerfile.dev
+├── package.json           # thin wrapper: delegates to frontend/contract, no deps of its own
+├── vercel.json            # builds frontend/ from the repo root (see docs/RUNBOOK.md)
 └── Final_Assignment.docx.pdf
 ```
 
