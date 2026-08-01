@@ -5,8 +5,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
+    curl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Foundry — fuzz and invariant tests for the v2 Hub's share accounting.
+# Hardhat still owns build/deploy/codegen; see docs/specs/2026-08-01-hub-spoke-lending-design.md §7.
+# Installed into /usr/local/foundry rather than ~/.foundry so it does not depend on HOME.
+# Pinned: an unpinned toolchain would silently change fuzz behaviour between image rebuilds.
+ENV FOUNDRY_DIR=/usr/local/foundry
+ENV PATH="/usr/local/foundry/bin:${PATH}"
+RUN curl -L https://foundry.paradigm.xyz | bash \
+    && foundryup --install v1.7.1
+
+# A login shell (`bash -l`, which `docker compose exec ... bash -lc` starts) sources
+# /etc/profile and overwrites PATH, discarding the ENV above. Re-add it there too.
+RUN echo 'export PATH="/usr/local/foundry/bin:$PATH"' > /etc/profile.d/foundry.sh
 
 WORKDIR /workspace
 

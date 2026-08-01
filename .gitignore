@@ -19,6 +19,10 @@ contract/data/
 contract/deployments/localhost/
 contract/deployments/hardhat/
 
+# ---- Foundry build output (generated) ----
+contract/forge-out/
+contract/forge-cache/
+
 # ---- Windows Zone.Identifier metadata ----
 *Zone.Identifier
 

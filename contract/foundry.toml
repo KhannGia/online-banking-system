@@ -1,0 +1,48 @@
+# Foundry is used ONLY for fuzz and invariant tests against the Hub's share accounting.
+# Hardhat remains the build/deploy/codegen backbone — see docs/specs/2026-08-01-hub-spoke-lending-design.md §1.1.
+#
+# Output paths are deliberately distinct from Hardhat's (`artifacts/`, `cache/`) so the two
+# toolchains can share one `contracts/` tree without fighting over build directories.
+
+[profile.default]
+src = "contracts"
+test = "test-foundry"
+out = "forge-out"
+cache_path = "forge-cache"
+libs = ["node_modules", "lib"]
+
+# Kept byte-for-byte in sync with hardhat.config.ts `solidity.compilers[0]`.
+# If one changes, change the other — otherwise Foundry proves properties about
+# bytecode that Hardhat never deploys.
+solc = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 1000
+via_ir = true
+
+# Fixed seed so a failing fuzz run reproduces exactly.
+[profile.default.fuzz]
+runs = 1000
+seed = "0x640"
+
+[profile.default.invariant]
+runs = 256
+depth = 128
+fail_on_revert = false
+
+# Iteration profile: same semantics, no via-IR, roughly an order of magnitude faster to
+# compile. Use `FOUNDRY_PROFILE=fast forge test` while writing tests, then confirm on the
+# default profile before committing.
+[profile.fast]
+via_ir = false
+optimizer = false
+
+[profile.fast.fuzz]
+runs = 100
+
+[profile.ci.fuzz]
+runs = 10000
+
+[profile.ci.invariant]
+runs = 1024
+depth = 256
