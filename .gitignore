@@ -25,6 +25,9 @@ contract/deployments/hardhat/
 # ---- Brainstorming session artifacts (mockups, not project source) ----
 .superpowers/
 
+# ---- Playwright MCP scratch output (page snapshots, console logs) ----
+.playwright-mcp/
+
 # ---- Editor / OS junk ----
 .DS_Store
 *.log
