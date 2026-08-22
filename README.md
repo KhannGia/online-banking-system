@@ -185,7 +185,7 @@ answers to all seven open questions are in [`contract/README.md`](contract/READM
 
 - **Etherscan verification not completed** on Sepolia — the installed `hardhat-verify` plugin
   targets Etherscan's sunset V1 API. The deployed bytecode is correct and functional; only the
-  "Verified" badge is missing.
+  "Verified" badge is missing.//
 - **The Sepolia interest vault starts empty.** Deposits work immediately, but interest payouts
   need the owner to fund the vault first (Admin tab → Fund vault).
 - Deposit enumeration is client-side (log scan) because `SavingCore` is a plain ERC-721 and
